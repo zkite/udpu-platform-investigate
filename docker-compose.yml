@@ -46,5 +46,17 @@ services:
       - ./repository-service/.env.repo.${ENV}
     network_mode: "host"
 
+  ui:
+    build:
+      context: ./ui/streamlit_app
+      dockerfile: Dockerfile
+    container_name: ui
+    environment:
+      - BACKEND_BASE_URL=http://localhost:8888/api/v1.0
+      - UI_REQUEST_TIMEOUT=5
+    depends_on:
+      - api-service
+    network_mode: "host"
+
 volumes:
   redis-data:

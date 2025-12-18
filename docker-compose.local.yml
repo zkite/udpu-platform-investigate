@@ -62,6 +62,21 @@ services:
     volumes:
       - /lib/modules:/lib/modules:ro
 
+  ui:
+    build:
+      context: ./ui/streamlit_app
+      dockerfile: Dockerfile
+    container_name: ui
+    environment:
+      - BACKEND_BASE_URL=http://api-service:8888/api/v1.0
+      - UI_REQUEST_TIMEOUT=5
+    depends_on:
+      - api-service
+    ports:
+      - "8501:8501"
+    networks:
+      - backend
+
   client-1:
     build:
       context: /Users/admin/projects/go/udpu-client-golang/dist
