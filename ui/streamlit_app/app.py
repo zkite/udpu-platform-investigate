@@ -2,6 +2,14 @@ import streamlit as st
 from services.api_client import APIClient
 
 st.set_page_config(page_title="uDPU Console", layout="wide")
+st.markdown(
+    """
+    <style>
+    .block-container { max-width: 1000px; margin: 0 auto; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 client = APIClient()
 
