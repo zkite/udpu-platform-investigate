@@ -1,0 +1,14 @@
+redis
+attrs
+bandit
+black
+fastapi
+fastapi-utils
+flake8
+isort
+loguru
+mypy-extensions
+pydantic
+pydantic-computed
+uvicorn
+

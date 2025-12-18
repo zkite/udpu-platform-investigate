@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    user: root
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --dir /data
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: docker/Dockerfile
+    container_name: discovery-service
+    ports:
+      - "8886:8886"
+    networks:
+      - backend
+    env_file:
+      - ./discovery-service/.env.discovery.${ENV}
+
+  repository-service:
+    build:
+      context: ./repository-service
+      dockerfile: docker/Dockerfile
+    container_name: repository-service
+    ports:
+      - "8887:8887"
+    networks:
+      - backend
+    env_file:
+      - ./repository-service/.env.repo.${ENV}
+
+  api-service:
+    build:
+      context: ./api-service
+      dockerfile: docker/Dockerfile
+    container_name: api-service
+    user: root
+    privileged: true
+    ports:
+      - "8888:8888"
+      - "51820:51820/udp"
+    networks:
+      - backend
+    env_file:
+      - ./api-service/.env.api.${ENV}
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    volumes:
+      - /lib/modules:/lib/modules:ro
+
+  client-1:
+    build:
+      context: /Users/admin/projects/go/udpu-client-golang/dist
+      dockerfile: Dockerfile
+    container_name: client-1
+    platform: linux/arm64
+    user: root
+    privileged: true
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /run
+      - /var/lock
+    volumes:
+      - owrt_etc_client1:/etc
+      - owrt_var_client1:/var
+      - /sys/firmware:/sys/firmware:ro
+      - /proc/device-tree:/proc/device-tree:ro
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    environment:
+      - LOCAL_TEST_MAC=02:00:00:00:00:01
+    networks:
+      - backend
+
+  client-2:
+    build:
+      context: /Users/admin/projects/go/udpu-client-golang/dist
+      dockerfile: Dockerfile
+    container_name: client-2
+    platform: linux/arm64
+    user: root
+    privileged: true
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /run
+      - /var/lock
+    volumes:
+      - owrt_etc_client2:/etc
+      - owrt_var_client2:/var
+      - /sys/firmware:/sys/firmware:ro
+      - /proc/device-tree:/proc/device-tree:ro
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    environment:
+      - LOCAL_TEST_MAC=02:00:00:00:00:02
+    networks:
+      - backend
+
+  client-3:
+    build:
+      context: /Users/admin/projects/go/udpu-client-golang/dist
+      dockerfile: Dockerfile
+    container_name: client-3
+    platform: linux/arm64
+    user: root
+    privileged: true
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /run
+      - /var/lock
+    volumes:
+      - owrt_etc_client3:/etc
+      - owrt_var_client3:/var
+      - /sys/firmware:/sys/firmware:ro
+      - /proc/device-tree:/proc/device-tree:ro
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    environment:
+      - LOCAL_TEST_MAC=02:00:00:00:00:03
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  redis-data: {}
+
+  owrt_etc_client1: {}
+  owrt_var_client1: {}
+
+  owrt_etc_client2: {}
+  owrt_var_client2: {}
+
+  owrt_etc_client3: {}
+  owrt_var_client3: {}

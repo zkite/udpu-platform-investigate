@@ -1,0 +1,86 @@
+# Python bytecode и кэши
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C расширения
+*.so
+
+# Пакеты и дистрибуция
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Логи установщиков pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Отчёты тестирования и покрытия
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache/
+.pytest_cache/
+
+# Виртуальные окружения
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Файлы IDE и редакторов
+# PyCharm
+.idea/
+*.iml
+# VSCode
+.vscode/
+
+# JetBrains дополнительные кеши
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries/
+.idea/**/shelf/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log
+
+# Временные и резервные файлы
+*~
+*.swp
+*.swp.*
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Node.js зависимости
+node_modules/
+
+# Docker артефакты
+docker-compose.override.yml
+Dockerfile.dev
+
+# Terraform состояние
+*.tfstate
+*.tfstate.*
+crash.log
+
+# SQLite базы данных
+*.sqlite3
+
+# SSH ключи и сертификаты
+*.pem
+*.key
+*.crt
+
+# Прочие локальные файлы
+local_settings.py

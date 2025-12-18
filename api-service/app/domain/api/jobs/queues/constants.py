@@ -1,0 +1,1 @@
+QUEUE_PREFIX = "QUEUE"
