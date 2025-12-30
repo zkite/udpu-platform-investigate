@@ -1,0 +1,9 @@
+APScheduler
+fastapi
+fastapi-utils
+loguru
+pydantic
+redis
+requests
+starlette
+uvicorn
