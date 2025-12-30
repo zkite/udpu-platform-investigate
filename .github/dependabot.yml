@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/api-service/requirements"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/discovery-service/requirements"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/repository-service/requirements"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/ui/streamlit_app"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/api-service/docker"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/discovery-service/docker"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/repository-service/docker"
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: "/ui/streamlit_app"
+    schedule:
+      interval: weekly
