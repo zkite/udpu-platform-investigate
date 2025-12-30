@@ -1,5 +1,5 @@
 redis==4.5.5
-attrs==23.1.0
+attrs==25.4.0
 bandit==1.7.5
 black==23.3.0
 fastapi==0.97.0
