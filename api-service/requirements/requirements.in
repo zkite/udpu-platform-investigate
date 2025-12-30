@@ -1,0 +1,14 @@
+APScheduler
+fastapi
+fastapi-utils
+gunicorn
+loguru
+normality
+pydantic
+pydantic-settings
+python-dotenv
+redis
+requests
+starlette
+uvicorn
+websockets
