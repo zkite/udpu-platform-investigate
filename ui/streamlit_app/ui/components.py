@@ -65,7 +65,7 @@ def status_badge(text):
 
 def render_nav(active):
     labels = [
-        ("Roles", "pages/1_Roles.py"),
+        ("Роли", "pages/1_Roles.py"),
         ("VBCE", "pages/2_VBCE.py"),
         ("Jobs", "pages/3_Jobs.py"),
         ("Execute", "pages/4_Execute_WS.py"),

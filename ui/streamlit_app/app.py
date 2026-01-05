@@ -24,11 +24,11 @@ def ensure_state():
 
 
 def sidebar_settings():
-    st.sidebar.header("Settings")
+    st.sidebar.header("Настройки")
     base = st.sidebar.text_input("API_BASE_URL", st.session_state.api_base_url)
     if st.sidebar.button("Save"):
         st.session_state.api_base_url = base
-        st.sidebar.success("Saved")
+        st.sidebar.success("Сохранено")
 
 
 def login_view():

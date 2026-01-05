@@ -65,28 +65,28 @@ def connect_section():
         job = st.selectbox("Job to run", job_names)
         channel = st.selectbox("UDPU channel", udpu_channels)
         st.markdown(f"WS: {ws_url(channel)}")
-        if st.button("Connect"):
+        if st.button("Подключиться"):
             try:
                 st.session_state.ws_client.connect(f"/pub?channel={channel}")
                 st.session_state.ws_connected = True
-                st.success("Connected")
+                st.success("Подключено")
             except Exception as e:
                 render_error(e)
-        if st.button("Disconnect"):
+        if st.button("Отключиться"):
             try:
                 st.session_state.ws_client.disconnect()
                 st.session_state.ws_connected = False
-                st.success("Disconnected")
+                st.success("Отключено")
             except Exception as e:
                 render_error(e)
-    render_card("Connection", body)
+    render_card("Подключение", body)
 
 
 def actions_section():
     def body():
         ensure_ws()
         if not st.session_state.get("ws_connected"):
-            st.warning("No connection")
+            st.warning("Нет подключения")
             return
         job_id = st.text_input("Job name or UID")
         col1, col2 = st.columns(2)
@@ -98,7 +98,7 @@ def actions_section():
                 except WsError as e:
                     render_error(e)
         with col2:
-            if st.button("Run job"):
+            if st.button("Выполнить задание"):
                 try:
                     st.session_state.ws_client.send(f"run job {job_id}")
                     st.session_state.ws_log.extend(st.session_state.ws_client.receive())
@@ -110,10 +110,10 @@ def actions_section():
                 st.session_state.ws_log.extend(st.session_state.ws_client.receive())
             except Exception as e:
                 render_error(e)
-        st.markdown("### Logs")
+        st.markdown("### Логи")
         for line in st.session_state.ws_log[-200:]:
             st.markdown(f"- {line}")
-    render_card("Actions", body)
+    render_card("Действия", body)
 
 
 def logout():
@@ -126,7 +126,7 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Execute")
+    content = render_nav("Выполнить")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
