@@ -73,7 +73,7 @@ def render_nav():
 def main():
     st.set_page_config(layout='wide', page_title='Admin UI')
     ensure_auth_state()
-    base_url = os.getenv('API_BASE_URL', 'http://localhost:8000')
+    base_url = os.getenv('API_BASE_URL', 'http://localhost:8888')
     client = APIClient(base_url)
     if not st.session_state.is_auth:
         handle_login()
