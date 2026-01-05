@@ -3,7 +3,7 @@ import streamlit as st
 from client.api_client import ApiClient, ApiError
 from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
-st.set_page_config(page_title="Jobs", layout="wide")
+st.set_page_config(page_title="Jobs", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
 inject_css(st.session_state.get("theme", "dark"))
 
@@ -166,24 +166,25 @@ def logout():
 
 def page():
     require_auth()
-    st.title("Jobs")
-    render_nav("Jobs")
-    if st.button("Sign out"):
+    content = render_nav("Jobs")
+    if st.session_state.pop("nav_logout", False):
         logout()
-    options = {
-        "Create": create_job,
-        "List": list_jobs,
-        "Get": get_job,
-        "Update": update_job,
-        "Delete": delete_job,
-        "By role": jobs_by_role,
-        "By frequency": jobs_by_frequency,
-    }
-    cols = st.columns([1, 3])
-    with cols[0]:
-        choice = st.radio("Action", list(options.keys()))
-    with cols[1]:
-        render_card(choice, options[choice])
+    with content:
+        st.title("Jobs")
+        options = {
+            "Create": create_job,
+            "List": list_jobs,
+            "Get": get_job,
+            "Update": update_job,
+            "Delete": delete_job,
+            "By role": jobs_by_role,
+            "By frequency": jobs_by_frequency,
+        }
+        cols = st.columns([1, 3])
+        with cols[0]:
+            choice = st.radio("Action", list(options.keys()))
+        with cols[1]:
+            render_card(choice, options[choice])
 
 
 page()

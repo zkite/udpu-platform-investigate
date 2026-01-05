@@ -3,7 +3,7 @@ import streamlit as st
 
 from ui.components import inject_css, render_card, render_nav
 
-st.set_page_config(page_title="Environment", layout="wide")
+st.set_page_config(page_title="Environment", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
 inject_css(st.session_state.get("theme", "dark"))
 
@@ -33,12 +33,23 @@ def env_items():
     return rows
 
 
+def logout():
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.ws_log = []
+    st.session_state.ws_connected = False
+    st.switch_page("app.py")
+
+
 def page():
     require_auth()
-    st.title("Environment")
-    render_nav("Environment")
-    rows = env_items()
-    render_card("Backend environment variables", lambda: st.table(rows))
+    content = render_nav("Environment")
+    if st.session_state.pop("nav_logout", False):
+        logout()
+    with content:
+        st.title("Environment")
+        rows = env_items()
+        render_card("Backend environment variables", lambda: st.table(rows))
 
 
 page()

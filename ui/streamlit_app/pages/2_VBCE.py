@@ -4,7 +4,7 @@ import streamlit as st
 from client.api_client import ApiClient, ApiError
 from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
-st.set_page_config(page_title="VBCE", layout="wide")
+st.set_page_config(page_title="VBCE", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
 inject_css(st.session_state.get("theme", "dark"))
 
@@ -159,13 +159,14 @@ def logout():
 
 def page():
     require_auth()
-    st.title("VBCE")
-    render_nav("VBCE")
-    if st.button("Sign out"):
+    content = render_nav("VBCE")
+    if st.session_state.pop("nav_logout", False):
         logout()
-    create_vbce_section()
-    list_vbce_section()
-    manage_vbce_section()
+    with content:
+        st.title("VBCE")
+        create_vbce_section()
+        list_vbce_section()
+        manage_vbce_section()
 
 
 page()

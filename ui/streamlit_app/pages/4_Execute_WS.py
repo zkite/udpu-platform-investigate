@@ -5,7 +5,7 @@ from client.api_client import ApiClient, ApiError
 from client.ws_client import WsClient, WsError
 from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
-st.set_page_config(page_title="Execute", layout="wide")
+st.set_page_config(page_title="Execute", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
 inject_css(st.session_state.get("theme", "dark"))
 
@@ -126,12 +126,13 @@ def logout():
 
 def page():
     require_auth()
-    st.title("Execute")
-    render_nav("Execute")
-    if st.button("Sign out"):
+    content = render_nav("Execute")
+    if st.session_state.pop("nav_logout", False):
         logout()
-    connect_section()
-    actions_section()
+    with content:
+        st.title("Execute")
+        connect_section()
+        actions_section()
 
 
 page()
