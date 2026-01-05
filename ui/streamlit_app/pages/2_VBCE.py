@@ -2,7 +2,7 @@ import json
 import streamlit as st
 
 from client.api_client import ApiClient, ApiError
-from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
+from ui.components import inject_css, render_card, render_json_response, render_error, render_nav, page_header
 
 st.set_page_config(page_title="VBCE", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
@@ -11,7 +11,7 @@ inject_css(st.session_state.get("theme", "dark"))
 def require_auth():
     if not st.session_state.get("authenticated"):
         st.error("Sign in required")
-        if st.button("Go to login"):
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -22,7 +22,7 @@ def get_client():
 
 def create_vbce_section():
     def body():
-        mode = st.radio("Mode", ["Form", "Raw JSON"], horizontal=True)
+        mode = st.radio("Input mode", ["Form", "Raw JSON"], horizontal=True)
         if mode == "Raw JSON":
             with st.form("vbce_json"):
                 raw = st.text_area("JSON", height=240)
@@ -111,11 +111,11 @@ def manage_vbce_section():
         with st.form("vbce_patch"):
             target = st.text_input("VBCE name to update")
             max_users = st.text_input("Max users")
-            ip_address = st.text_input("IP address")
+            ip_address = st.text_input("IP адрес")
             tcp_port = st.text_input("TCP port")
             location_id = st.text_input("Location ID")
             force_local = st.selectbox("Force local", ["", True, False], index=0)
-            submitted = st.form_submit_button("Update")
+            submitted = st.form_submit_button("Save")
             if submitted:
                 payload = {}
                 if max_users.strip():
@@ -163,10 +163,13 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        st.title("VBCE")
-        create_vbce_section()
+        page_header("VBCE", "Manage entry points and connection settings")
+        cols = st.columns([1.1, 1])
+        with cols[0]:
+            create_vbce_section()
+        with cols[1]:
+            manage_vbce_section()
         list_vbce_section()
-        manage_vbce_section()
 
 
 page()

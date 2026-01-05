@@ -3,7 +3,7 @@ import streamlit as st
 
 from client.api_client import ApiClient, ApiError
 from client.ws_client import WsClient, WsError
-from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
+from ui.components import inject_css, render_card, render_json_response, render_error, render_nav, page_header
 
 st.set_page_config(page_title="Execute", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
@@ -12,7 +12,7 @@ inject_css(st.session_state.get("theme", "dark"))
 def require_auth():
     if not st.session_state.get("authenticated"):
         st.error("Sign in required")
-        if st.button("Go to login"):
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -62,7 +62,7 @@ def connect_section():
         udpu_list = load_udpu()
         job_names = [j.get("uid") or j.get("name") for j in jobs]
         udpu_channels = [u.get("subscriber_uid") for u in udpu_list]
-        job = st.selectbox("Job UID/Name", job_names)
+        job = st.selectbox("Job to run", job_names)
         channel = st.selectbox("UDPU channel", udpu_channels)
         st.markdown(f"WS: {ws_url(channel)}")
         if st.button("Connect"):
@@ -88,7 +88,7 @@ def actions_section():
         if not st.session_state.get("ws_connected"):
             st.warning("No connection")
             return
-        job_id = st.text_input("Job name/uid to run")
+        job_id = st.text_input("Job name or UID")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Ping"):
@@ -104,7 +104,7 @@ def actions_section():
                     st.session_state.ws_log.extend(st.session_state.ws_client.receive())
                 except Exception as e:
                     render_error(e)
-        if st.button("Fetch status"):
+        if st.button("Status"):
             try:
                 st.session_state.ws_client.send("run job status")
                 st.session_state.ws_log.extend(st.session_state.ws_client.receive())
@@ -130,9 +130,12 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        st.title("Execute")
-        connect_section()
-        actions_section()
+        page_header("Execute", "WebSocket connections and remote commands")
+        cols = st.columns([1, 1])
+        with cols[0]:
+            connect_section()
+        with cols[1]:
+            actions_section()
 
 
 page()

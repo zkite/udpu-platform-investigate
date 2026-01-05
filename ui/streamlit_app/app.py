@@ -26,26 +26,60 @@ def ensure_state():
 def sidebar_settings():
     st.sidebar.header("Settings")
     base = st.sidebar.text_input("API_BASE_URL", st.session_state.api_base_url)
-    if st.sidebar.button("Apply"):
+    if st.sidebar.button("Save"):
         st.session_state.api_base_url = base
         st.sidebar.success("Saved")
 
 
 def login_view():
-    st.title("Login")
-    theme_toggle("Темная тема")
-    with st.form("login_form"):
-        username = st.text_input("Username", value="admin")
-        password = st.text_input("Password", value="admin", type="password")
-        submitted = st.form_submit_button("Sign in")
-        if submitted:
-            if username == "admin" and password == "admin":
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                st.success("Authenticated")
-                st.switch_page("pages/1_Roles.py")
-            else:
-                st.error("Invalid credentials")
+    top = st.columns([5, 2.2])
+    with top[1]:
+        theme_toggle("login")
+    st.markdown(
+        """
+        <div class="page-hero">
+          <div class="hero-title">UDPU Platform</div>
+          <p class="hero-sub">Clean control panel for services and configs</p>
+          <div class="hero-meta">
+            <span>⚡ Quick access</span>
+            <span>🔒 Secure login</span>
+            <span>🎨 Theme toggle</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    cols = st.columns([1.1, 1])
+    with cols[0]:
+        st.markdown(
+            """
+            <div class="card">
+              <div class="card-title">Minimal layout</div>
+              <div class="card-body">
+                <p>Tailwind-inspired surfaces, crisp typography and calm spacing for faster work.</p>
+                <p>Switch between light and dark instantly and keep key actions in one place.</p>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with cols[1]:
+        st.markdown('<div class="login-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="login-title">Sign in</div>', unsafe_allow_html=True)
+        st.markdown('<p class="login-sub">Use administrator credentials</p>', unsafe_allow_html=True)
+        with st.form("login_form"):
+            username = st.text_input("Username", value="admin")
+            password = st.text_input("Password", value="admin", type="password")
+            submitted = st.form_submit_button("Sign in")
+            if submitted:
+                if username == "admin" and password == "admin":
+                    st.session_state.authenticated = True
+                    st.session_state.username = username
+                    st.success("Signed in")
+                    st.switch_page("pages/1_Roles.py")
+                else:
+                    st.error("Invalid credentials")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
