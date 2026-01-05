@@ -9,10 +9,19 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def inject_css(theme):
     st.markdown(theme_style(theme), unsafe_allow_html=True)
-    st.markdown("<style>[data-testid='stSidebarNav']{display:none}</style>", unsafe_allow_html=True)
+    st.markdown(
+        "<style>[data-testid='stSidebarNav']{display:none} button[title='Deploy this app']{display:none!important}</style>",
+        unsafe_allow_html=True,
+    )
     path = BASE_DIR / "styles.css"
     if path.exists():
         st.markdown(f"<style>{path.read_text()}</style>", unsafe_allow_html=True)
+
+
+def theme_toggle(label="Темная тема"):
+    value = st.session_state.get("theme", "dark") == "dark"
+    enabled = st.toggle(label, value=value, key="theme_toggle")
+    st.session_state.theme = "dark" if enabled else "light"
 
 
 def render_card(title, body_fn):
@@ -52,7 +61,7 @@ def status_badge(text):
 
 
 def render_nav(active):
-    cols = st.columns(5)
+    nav_col, content_col = st.columns([1, 5], gap="large")
     labels = [
         ("Roles", "pages/1_Roles.py"),
         ("VBCE", "pages/2_VBCE.py"),
@@ -60,7 +69,13 @@ def render_nav(active):
         ("Execute", "pages/4_Execute_WS.py"),
         ("Environment", "pages/5_Environment.py"),
     ]
-    for idx, item in enumerate(labels):
-        label, target = item
-        if cols[idx].button(label, disabled=label == active):
-            st.switch_page(target)
+    with nav_col:
+        st.markdown('<div class="nav-panel">', unsafe_allow_html=True)
+        for label, target in labels:
+            if st.button(label, disabled=label == active, use_container_width=True, key=f"nav_{label}"):
+                st.switch_page(target)
+        theme_toggle()
+        if st.button("Sign Out", use_container_width=True, key="nav_sign_out"):
+            st.session_state["nav_logout"] = True
+        st.markdown("</div>", unsafe_allow_html=True)
+    return content_col

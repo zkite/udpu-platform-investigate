@@ -1,9 +1,9 @@
 import os
 import streamlit as st
 
-from ui.components import inject_css
+from ui.components import inject_css, theme_toggle
 
-st.set_page_config(page_title="UDPU Console", layout="wide")
+st.set_page_config(page_title="UDPU Console", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
 
 def ensure_state():
@@ -19,20 +19,21 @@ def ensure_state():
         st.session_state.ws_connected = False
     if "theme" not in st.session_state:
         st.session_state.theme = "dark"
+    if "nav_logout" not in st.session_state:
+        st.session_state.nav_logout = False
 
 
 def sidebar_settings():
     st.sidebar.header("Settings")
     base = st.sidebar.text_input("API_BASE_URL", st.session_state.api_base_url)
-    theme = st.sidebar.selectbox("Theme", ["dark", "light"], index=0 if st.session_state.theme == "dark" else 1)
     if st.sidebar.button("Apply"):
         st.session_state.api_base_url = base
-        st.session_state.theme = theme
         st.sidebar.success("Saved")
 
 
 def login_view():
     st.title("Login")
+    theme_toggle("Темная тема")
     with st.form("login_form"):
         username = st.text_input("Username", value="admin")
         password = st.text_input("Password", value="admin", type="password")

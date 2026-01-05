@@ -75,3 +75,23 @@ section[data-testid="stSidebar"] > div {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   font-size: 13px;
 }
+
+.nav-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  position: sticky;
+  top: var(--spacing-md);
+}
+
+.nav-panel .stButton button {
+  width: 100%;
+}
+
+.nav-panel .stToggle {
+  margin-bottom: var(--spacing-sm);
+}
