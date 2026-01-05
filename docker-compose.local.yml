@@ -104,59 +104,59 @@ services:
     networks:
       - backend
 
-  client-2:
-    build:
-      context: /Users/admin/projects/go/udpu-client-golang/dist
-      dockerfile: Dockerfile
-    container_name: client-2
-    platform: linux/arm64
-    user: root
-    privileged: true
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    cap_add:
-      - NET_ADMIN
-    tmpfs:
-      - /run
-      - /var/lock
-    volumes:
-      - owrt_etc_client2:/etc
-      - owrt_var_client2:/var
-      - /sys/firmware:/sys/firmware:ro
-      - /proc/device-tree:/proc/device-tree:ro
-    sysctls:
-      net.ipv4.ip_forward: "1"
-    environment:
-      - LOCAL_TEST_MAC=02:00:00:00:00:02
-    networks:
-      - backend
-
-  client-3:
-    build:
-      context: /Users/admin/projects/go/udpu-client-golang/dist
-      dockerfile: Dockerfile
-    container_name: client-3
-    platform: linux/arm64
-    user: root
-    privileged: true
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    cap_add:
-      - NET_ADMIN
-    tmpfs:
-      - /run
-      - /var/lock
-    volumes:
-      - owrt_etc_client3:/etc
-      - owrt_var_client3:/var
-      - /sys/firmware:/sys/firmware:ro
-      - /proc/device-tree:/proc/device-tree:ro
-    sysctls:
-      net.ipv4.ip_forward: "1"
-    environment:
-      - LOCAL_TEST_MAC=02:00:00:00:00:03
-    networks:
-      - backend
+#  client-2:
+#    build:
+#      context: /Users/admin/projects/go/udpu-client-golang/dist
+#      dockerfile: Dockerfile
+#    container_name: client-2
+#    platform: linux/arm64
+#    user: root
+#    privileged: true
+#    devices:
+#      - /dev/net/tun:/dev/net/tun
+#    cap_add:
+#      - NET_ADMIN
+#    tmpfs:
+#      - /run
+#      - /var/lock
+#    volumes:
+#      - owrt_etc_client2:/etc
+#      - owrt_var_client2:/var
+#      - /sys/firmware:/sys/firmware:ro
+#      - /proc/device-tree:/proc/device-tree:ro
+#    sysctls:
+#      net.ipv4.ip_forward: "1"
+#    environment:
+#      - LOCAL_TEST_MAC=02:00:00:00:00:02
+#    networks:
+#      - backend
+#
+#  client-3:
+#    build:
+#      context: /Users/admin/projects/go/udpu-client-golang/dist
+#      dockerfile: Dockerfile
+#    container_name: client-3
+#    platform: linux/arm64
+#    user: root
+#    privileged: true
+#    devices:
+#      - /dev/net/tun:/dev/net/tun
+#    cap_add:
+#      - NET_ADMIN
+#    tmpfs:
+#      - /run
+#      - /var/lock
+#    volumes:
+#      - owrt_etc_client3:/etc
+#      - owrt_var_client3:/var
+#      - /sys/firmware:/sys/firmware:ro
+#      - /proc/device-tree:/proc/device-tree:ro
+#    sysctls:
+#      net.ipv4.ip_forward: "1"
+#    environment:
+#      - LOCAL_TEST_MAC=02:00:00:00:00:03
+#    networks:
+#      - backend
 
 networks:
   backend:
@@ -168,8 +168,8 @@ volumes:
   owrt_etc_client1: {}
   owrt_var_client1: {}
 
-  owrt_etc_client2: {}
-  owrt_var_client2: {}
-
-  owrt_etc_client3: {}
-  owrt_var_client3: {}
+#  owrt_etc_client2: {}
+#  owrt_var_client2: {}
+#
+#  owrt_etc_client3: {}
+#  owrt_var_client3: {}
