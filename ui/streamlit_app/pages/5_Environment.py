@@ -10,8 +10,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Требуется вход")
-        if st.button("Перейти к логину"):
+        st.error("Sign in required")
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -43,13 +43,13 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Окружение")
+    content = render_nav("Env")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        page_header("Окружение", "Активные переменные и настройки подключения")
+        page_header("Environment", "Active variables and connection settings")
         rows = env_items()
-        render_card("Параметры окружения", lambda: st.table(rows))
+        render_card("Environment variables", lambda: st.table(rows))
 
 
 page()

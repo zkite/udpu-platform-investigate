@@ -9,8 +9,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Требуется вход")
-        if st.button("Перейти к логину"):
+        st.error("Sign in required")
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -88,9 +88,9 @@ def update_job():
         required_software = st.text_input("Необходимое ПО", value="")
         frequency = st.selectbox("Частота", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
         locked = st.text_input("Locked", value="")
-        role = st.text_input("Роль", value="")
-        type_val = st.text_input("Тип", value="")
-        submitted = st.form_submit_button("Сохранить")
+        role = st.text_input("Role", value="")
+        type_val = st.text_input("Type", value="")
+        submitted = st.form_submit_button("Save")
         if submitted:
             payload = {}
             if description:
@@ -170,7 +170,7 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        page_header("Задания", "Работа с очередями, частотами и привязкой к ролям")
+        page_header("Jobs", "Queues, frequencies and role mappings")
         options = {
             "Создать": create_job,
             "Список": list_jobs,

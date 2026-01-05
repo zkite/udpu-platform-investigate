@@ -1,22 +1,11 @@
 [data-testid="stAppViewContainer"] {
-  background: var(--gradient-1), var(--background);
-  position: relative;
-}
-
-[data-testid="stAppViewContainer"]::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: var(--gradient-2);
-  filter: blur(120px);
-  opacity: 0.9;
-  z-index: -1;
+  background: var(--gradient-1);
 }
 
 [data-testid="stAppViewContainer"] > .main {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: calc(var(--spacing-lg) + 8px) var(--spacing-lg) 96px;
+  padding: 32px var(--spacing-lg) 72px;
 }
 
 body, .main {
@@ -31,8 +20,6 @@ body, .main {
 section[data-testid="stSidebar"] > div {
   background: var(--glass);
   border-left: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(18px);
 }
 
 section[data-testid="stSidebar"] label {
@@ -48,7 +35,7 @@ section[data-testid="stSidebar"] label {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
-  padding: 12px 14px;
+  padding: 11px 12px;
 }
 
 .stCheckbox label,
@@ -58,20 +45,19 @@ section[data-testid="stSidebar"] label {
 
 .stButton > button {
   width: 100%;
-  background: linear-gradient(130deg, var(--primary), var(--accent));
-  color: #ffffff;
+  background: var(--primary);
+  color: #0b1220;
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
+  border-radius: 10px;
+  padding: 11px 12px;
   font-weight: 700;
   box-shadow: var(--shadow-soft), var(--shadow-glow);
-  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  transition: transform 0.08s ease, box-shadow 0.18s ease;
 }
 
 .stButton > button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-strong), var(--shadow-glow);
-  filter: brightness(1.03);
 }
 
 .stButton > button:disabled {
@@ -86,31 +72,20 @@ section[data-testid="stSidebar"] label {
 }
 
 .card {
-  background: var(--glass);
-  border-radius: 18px;
-  padding: calc(var(--spacing-md) + 4px);
-  box-shadow: var(--shadow-soft);
-  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  border-radius: 14px;
+  padding: calc(var(--spacing-md) + 2px);
+  border: 1px solid var(--border);
   margin-bottom: var(--spacing-lg);
-  backdrop-filter: blur(12px);
-  position: relative;
-  overflow: hidden;
-}
-
-.card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(145deg, transparent, var(--panel-strong));
-  pointer-events: none;
+  box-shadow: var(--shadow-soft);
 }
 
 .card-title {
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--text);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .card .card-body {
@@ -180,9 +155,7 @@ section[data-testid="stSidebar"] label {
   border-radius: 999px;
   background: var(--panel);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-soft);
   font-weight: 800;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
@@ -195,69 +168,56 @@ section[data-testid="stSidebar"] label {
 .nav-underline {
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  background: var(--border);
   margin: var(--spacing-md) 0 var(--spacing-lg);
 }
 
 .page-hero {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  border-radius: 22px;
-  padding: 20px;
+  background: var(--surface_alt);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
   box-shadow: var(--shadow-soft);
-  position: relative;
-  overflow: hidden;
-}
-
-.page-hero::before {
-  content: "";
-  position: absolute;
-  width: 280px;
-  height: 280px;
-  top: -120px;
-  right: -80px;
-  background: radial-gradient(circle at center, var(--accent), transparent 60%);
-  opacity: 0.18;
 }
 
 .hero-title {
-  font-size: 32px;
-  font-weight: 900;
+  font-size: 30px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text);
 }
 
 .hero-sub {
   color: var(--muted);
-  font-size: 16px;
-  margin: 6px 0 14px;
+  font-size: 15px;
+  margin: 6px 0 12px;
 }
 
 .hero-meta {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   color: var(--text);
   font-weight: 700;
 }
 
 .hero-meta span {
-  padding: 8px 12px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
 }
 
 .login-wrapper {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px;
   box-shadow: var(--shadow-soft);
 }
 
 .login-title {
-  font-weight: 900;
-  font-size: 28px;
+  font-weight: 800;
+  font-size: 26px;
   margin-bottom: var(--spacing-sm);
 }
 

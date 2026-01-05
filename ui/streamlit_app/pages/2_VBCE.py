@@ -10,8 +10,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Требуется вход")
-        if st.button("Перейти к логину"):
+        st.error("Sign in required")
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -22,8 +22,8 @@ def get_client():
 
 def create_vbce_section():
     def body():
-        mode = st.radio("Режим ввода", ["Форма", "Чистый JSON"], horizontal=True)
-        if mode == "Чистый JSON":
+        mode = st.radio("Input mode", ["Form", "Raw JSON"], horizontal=True)
+        if mode == "Raw JSON":
             with st.form("vbce_json"):
                 raw = st.text_area("JSON", height=240)
                 submitted = st.form_submit_button("Создать")
@@ -112,10 +112,10 @@ def manage_vbce_section():
             target = st.text_input("VBCE для обновления")
             max_users = st.text_input("Max users")
             ip_address = st.text_input("IP адрес")
-            tcp_port = st.text_input("TCP порт")
-            location_id = st.text_input("ID локации")
+            tcp_port = st.text_input("TCP port")
+            location_id = st.text_input("Location ID")
             force_local = st.selectbox("Force local", ["", True, False], index=0)
-            submitted = st.form_submit_button("Сохранить")
+            submitted = st.form_submit_button("Save")
             if submitted:
                 payload = {}
                 if max_users.strip():
@@ -163,7 +163,7 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        page_header("VBCE", "Управление точками входа и параметрами подключения")
+        page_header("VBCE", "Manage entry points and connection settings")
         cols = st.columns([1.1, 1])
         with cols[0]:
             create_vbce_section()

@@ -10,8 +10,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Требуется вход")
-        if st.button("Перейти к логину"):
+        st.error("Sign in required")
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -97,8 +97,8 @@ def list_roles_section():
                     new_name = st.text_input("Имя", value=role.get("name", ""))
                     description = st.text_area("Описание", value=role.get("description", ""))
                     wireguard = st.checkbox("Wireguard", value=bool(role.get("wireguard_tunnel")))
-                    job_control = st.checkbox("Контроль заданий", value=bool(role.get("job_control")))
-                    submitted = st.form_submit_button("Сохранить")
+                    job_control = st.checkbox("Job control", value=bool(role.get("job_control")))
+                    submitted = st.form_submit_button("Save")
                     if submitted:
                         payload = {
                             "name": new_name.strip(),
@@ -141,7 +141,7 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        page_header("Роли", "Управление правами доступа и фичами uDPU")
+        page_header("Roles", "Access control and features for uDPU")
         cols = st.columns([1, 1])
         with cols[0]:
             create_role_section()

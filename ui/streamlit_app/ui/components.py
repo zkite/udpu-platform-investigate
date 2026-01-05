@@ -22,8 +22,8 @@ def theme_toggle(label="Темная тема"):
     current = st.session_state.get("theme", "dark")
     next_theme = "light" if current == "dark" else "dark"
     icon = "🌙" if current == "dark" else "☀️"
-    caption = "Тёмная" if current == "dark" else "Светлая"
-    if st.button(f"{icon} {caption} тема", key=f"theme_btn_{label}", use_container_width=True):
+    caption = "Dark" if current == "dark" else "Light"
+    if st.button(f"{icon} {caption} mode", key=f"theme_btn_{label}", use_container_width=True):
         st.session_state.theme = next_theme
 
 
@@ -67,14 +67,14 @@ def render_nav(active):
     labels = [
         ("Роли", "pages/1_Roles.py"),
         ("VBCE", "pages/2_VBCE.py"),
-        ("Задания", "pages/3_Jobs.py"),
-        ("Выполнить", "pages/4_Execute_WS.py"),
-        ("Окружение", "pages/5_Environment.py"),
+        ("Jobs", "pages/3_Jobs.py"),
+        ("Execute", "pages/4_Execute_WS.py"),
+        ("Env", "pages/5_Environment.py"),
     ]
     with st.container():
-        top = st.columns([1.6, 3, 1.6], gap="large")
+        top = st.columns([1.4, 3, 1.2], gap="large")
         with top[0]:
-            st.markdown("<div class='brand-badge'>UDPU Platform</div><p class='brand-sub'>Консоль управления</p>", unsafe_allow_html=True)
+            st.markdown("<div class='brand-badge'>UDPU Console</div><p class='brand-sub'>Minimal control center</p>", unsafe_allow_html=True)
         with top[1]:
             btn_cols = st.columns(len(labels))
             for (label, target), col in zip(labels, btn_cols):
@@ -83,7 +83,7 @@ def render_nav(active):
                         st.switch_page(target)
         with top[2]:
             theme_toggle("nav")
-            if st.button("Выйти", use_container_width=True, key="nav_sign_out"):
+            if st.button("Sign out", use_container_width=True, key="nav_sign_out"):
                 st.session_state["nav_logout"] = True
         st.markdown('<div class="nav-underline"></div>', unsafe_allow_html=True)
     content_col = st.container()
@@ -92,9 +92,9 @@ def render_nav(active):
 
 def page_header(title, subtitle=None, extra=None):
     labels = [
-        ("🛡️", "Роли и доступы"),
-        ("🛰️", "uDPU и VBCE"),
-        ("⚡", "Команды и события"),
+        ("🛡️", "Roles"),
+        ("🛰️", "uDPU & VBCE"),
+        ("⚡", "Jobs & actions"),
     ]
     with st.container():
         st.markdown('<div class="page-hero">', unsafe_allow_html=True)

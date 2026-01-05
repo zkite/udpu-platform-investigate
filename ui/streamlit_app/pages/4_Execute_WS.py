@@ -11,8 +11,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Требуется вход")
-        if st.button("Перейти к логину"):
+        st.error("Sign in required")
+        if st.button("Back to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -62,8 +62,8 @@ def connect_section():
         udpu_list = load_udpu()
         job_names = [j.get("uid") or j.get("name") for j in jobs]
         udpu_channels = [u.get("subscriber_uid") for u in udpu_list]
-        job = st.selectbox("Задание для запуска", job_names)
-        channel = st.selectbox("Канал UDPU", udpu_channels)
+        job = st.selectbox("Job to run", job_names)
+        channel = st.selectbox("UDPU channel", udpu_channels)
         st.markdown(f"WS: {ws_url(channel)}")
         if st.button("Подключиться"):
             try:
@@ -88,7 +88,7 @@ def actions_section():
         if not st.session_state.get("ws_connected"):
             st.warning("Нет подключения")
             return
-        job_id = st.text_input("Имя или UID задания")
+        job_id = st.text_input("Job name or UID")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Ping"):
@@ -104,7 +104,7 @@ def actions_section():
                     st.session_state.ws_log.extend(st.session_state.ws_client.receive())
                 except Exception as e:
                     render_error(e)
-        if st.button("Получить статус"):
+        if st.button("Status"):
             try:
                 st.session_state.ws_client.send("run job status")
                 st.session_state.ws_log.extend(st.session_state.ws_client.receive())
@@ -130,7 +130,7 @@ def page():
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        page_header("Выполнить", "WebSocket подключение и удалённые команды")
+        page_header("Execute", "WebSocket connections and remote commands")
         cols = st.columns([1, 1])
         with cols[0]:
             connect_section()
