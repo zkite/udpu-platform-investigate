@@ -1,28 +1,90 @@
+[data-testid="stAppViewContainer"] {
+  background: radial-gradient(120% 120% at 15% 20%, rgba(109,199,255,0.12), transparent 40%),
+    radial-gradient(120% 120% at 80% 0%, rgba(53,130,255,0.12), transparent 38%),
+    radial-gradient(120% 120% at 50% 90%, rgba(46,213,115,0.08), transparent 35%),
+    var(--background);
+}
+
 [data-testid="stAppViewContainer"] > .main {
   max-width: var(--max-width);
   margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+body, .main {
+  color: var(--text);
+  font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 .block-container {
-  padding-top: var(--spacing-lg);
+  padding: 0;
 }
 
 section[data-testid="stSidebar"] > div {
   background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+section[data-testid="stSidebar"] label {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.stTextInput > div > div > input,
+.stTextArea textarea,
+.stSelectbox > div > div > div > input,
+.stNumberInput input {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.stButton > button {
+  width: 100%;
+  background: linear-gradient(135deg, var(--primary), #69c4f6);
+  color: #0b1020;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.08s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.stButton > button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-strong);
+  filter: brightness(1.02);
+}
+
+.stButton > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+  gap: var(--spacing-sm);
 }
 
 .card {
-  background: var(--surface);
+  background: linear-gradient(145deg, rgba(255,255,255,0.02), var(--panel));
   border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  box-shadow: var(--shadow-card);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: calc(var(--spacing-md) + 2px);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border);
   margin-bottom: var(--spacing-lg);
+  backdrop-filter: blur(6px);
 }
 
 .card h3 {
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--text);
+  font-size: 20px;
+  letter-spacing: -0.01em;
 }
 
 .card .card-body {
@@ -30,11 +92,11 @@ section[data-testid="stSidebar"] > div {
 }
 
 .code-block {
-  background: #0B1220;
-  color: #D1D5DB;
+  background: var(--code-bg);
+  color: var(--text);
   padding: var(--spacing-md);
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--code-border);
   overflow-x: auto;
 }
 
@@ -46,13 +108,14 @@ section[data-testid="stSidebar"] > div {
 .table-wrap th,
 .table-wrap td {
   padding: var(--spacing-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border);
   color: var(--text);
 }
 
 .table-wrap th {
   text-align: left;
   color: var(--muted);
+  font-weight: 600;
 }
 
 .button-row {
@@ -62,10 +125,10 @@ section[data-testid="stSidebar"] > div {
 }
 
 .ws-log {
-  background: #0B1220;
+  background: var(--code-bg);
   padding: var(--spacing-md);
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--code-border);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -77,7 +140,7 @@ section[data-testid="stSidebar"] > div {
 }
 
 .nav-panel {
-  background: var(--surface);
+  background: linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
@@ -86,6 +149,7 @@ section[data-testid="stSidebar"] > div {
   gap: var(--spacing-sm);
   position: sticky;
   top: var(--spacing-md);
+  box-shadow: var(--shadow-soft);
 }
 
 .nav-panel .stButton button {
@@ -94,4 +158,16 @@ section[data-testid="stSidebar"] > div {
 
 .nav-panel .stToggle {
   margin-bottom: var(--spacing-sm);
+}
+
+.st-emotion-cache-16idsys p,
+.st-emotion-cache-16idsys h1,
+.st-emotion-cache-16idsys h2,
+.st-emotion-cache-16idsys h3,
+.st-emotion-cache-16idsys h4 {
+  color: var(--text);
+}
+
+button[title="Deploy this app"] {
+  display: none !important;
 }
