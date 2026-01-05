@@ -39,7 +39,7 @@ class WsClient:
 
     async def _send(self, text):
         if not self.connection:
-            raise WsError("Нет активного соединения")
+            raise WsError("No active connection")
         await self.connection.send(text)
 
     def send(self, text):
@@ -47,7 +47,7 @@ class WsClient:
 
     async def _ping(self):
         if not self.connection:
-            raise WsError("Нет активного соединения")
+            raise WsError("No active connection")
         pong_waiter = await self.connection.ping()
         await asyncio.wait_for(pong_waiter, timeout=self.timeout)
 
@@ -57,7 +57,7 @@ class WsClient:
     async def _receive(self, limit, timeout):
         results = []
         if not self.connection:
-            raise WsError("Нет активного соединения")
+            raise WsError("No active connection")
         for _ in range(limit):
             try:
                 msg = await asyncio.wait_for(self.connection.recv(), timeout)

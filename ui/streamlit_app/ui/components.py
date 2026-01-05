@@ -2,12 +2,14 @@ import json
 from pathlib import Path
 import streamlit as st
 
-from ui.theme import COLORS
+from ui.theme import get_colors, theme_style
 
 BASE_DIR = Path(__file__).resolve().parent
 
 
-def inject_css():
+def inject_css(theme):
+    st.markdown(theme_style(theme), unsafe_allow_html=True)
+    st.markdown("<style>[data-testid='stSidebarNav']{display:none}</style>", unsafe_allow_html=True)
     path = BASE_DIR / "styles.css"
     if path.exists():
         st.markdown(f"<style>{path.read_text()}</style>", unsafe_allow_html=True)
@@ -41,8 +43,24 @@ def render_error(err):
 
 
 def status_badge(text):
+    colors = get_colors(st.session_state.get("theme", "dark"))
     st.markdown(
-        f"<span style='background:{COLORS['surface']}; color:{COLORS['text']}; padding:4px 8px; border-radius:8px; font-size:12px; border:1px solid {COLORS['border']}'>"
+        f"<span style='background:{colors['surface']}; color:{colors['text']}; padding:4px 8px; border-radius:8px; font-size:12px; border:1px solid {colors['border']}'>"
         f"{text}</span>",
         unsafe_allow_html=True,
     )
+
+
+def render_nav(active):
+    cols = st.columns(5)
+    labels = [
+        ("Roles", "pages/1_Roles.py"),
+        ("VBCE", "pages/2_VBCE.py"),
+        ("Jobs", "pages/3_Jobs.py"),
+        ("Execute", "pages/4_Execute_WS.py"),
+        ("Environment", "pages/5_Environment.py"),
+    ]
+    for idx, item in enumerate(labels):
+        label, target = item
+        if cols[idx].button(label, disabled=label == active):
+            st.switch_page(target)

@@ -3,16 +3,16 @@ import streamlit as st
 
 from client.api_client import ApiClient, ApiError
 from client.ws_client import WsClient, WsError
-from ui.components import inject_css, render_card, render_json_response, render_error
+from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
 st.set_page_config(page_title="Execute", layout="wide")
 
-inject_css()
+inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Нужен вход")
-        if st.button("К логину"):
+        st.error("Sign in required")
+        if st.button("Go to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -65,30 +65,30 @@ def connect_section():
         job = st.selectbox("Job UID/Name", job_names)
         channel = st.selectbox("UDPU channel", udpu_channels)
         st.markdown(f"WS: {ws_url(channel)}")
-        if st.button("Подключиться"):
+        if st.button("Connect"):
             try:
                 st.session_state.ws_client.connect(f"/pub?channel={channel}")
                 st.session_state.ws_connected = True
-                st.success("Соединение установлено")
+                st.success("Connected")
             except Exception as e:
                 render_error(e)
-        if st.button("Отключиться"):
+        if st.button("Disconnect"):
             try:
                 st.session_state.ws_client.disconnect()
                 st.session_state.ws_connected = False
-                st.success("Отключено")
+                st.success("Disconnected")
             except Exception as e:
                 render_error(e)
-    render_card("Подключение", body)
+    render_card("Connection", body)
 
 
 def actions_section():
     def body():
         ensure_ws()
         if not st.session_state.get("ws_connected"):
-            st.warning("Нет соединения")
+            st.warning("No connection")
             return
-        job_id = st.text_input("Job имя/uid для запуска")
+        job_id = st.text_input("Job name/uid to run")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Ping"):
@@ -104,28 +104,32 @@ def actions_section():
                     st.session_state.ws_log.extend(st.session_state.ws_client.receive())
                 except Exception as e:
                     render_error(e)
-        if st.button("Получить статус"):
+        if st.button("Fetch status"):
             try:
                 st.session_state.ws_client.send("run job status")
                 st.session_state.ws_log.extend(st.session_state.ws_client.receive())
             except Exception as e:
                 render_error(e)
-        st.markdown("### Логи")
+        st.markdown("### Logs")
         for line in st.session_state.ws_log[-200:]:
             st.markdown(f"- {line}")
-    render_card("Действия", body)
+    render_card("Actions", body)
+
+
+def logout():
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.ws_log = []
+    st.session_state.ws_connected = False
+    st.switch_page("app.py")
 
 
 def page():
     require_auth()
     st.title("Execute")
-    st.caption(f"База API: {st.session_state.get('api_base_url')}")
-    if st.button("Выйти"):
-        st.session_state.authenticated = False
-        st.session_state.username = None
-        st.session_state.ws_log = []
-        st.session_state.ws_connected = False
-        st.switch_page("app.py")
+    render_nav("Execute")
+    if st.button("Sign out"):
+        logout()
     connect_section()
     actions_section()
 

@@ -1,16 +1,16 @@
 import streamlit as st
 
 from client.api_client import ApiClient, ApiError
-from ui.components import inject_css, render_card, render_json_response, render_error
+from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
 st.set_page_config(page_title="Jobs", layout="wide")
 
-inject_css()
+inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Нужен вход")
-        if st.button("К логину"):
+        st.error("Sign in required")
+        if st.button("Go to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -21,17 +21,17 @@ def get_client():
 
 def create_job():
     with st.form("create_job"):
-        name = st.text_input("Имя")
-        description = st.text_area("Описание", value="")
-        command = st.text_area("Команда")
+        name = st.text_input("Name")
+        description = st.text_area("Description", value="")
+        command = st.text_area("Command")
         require_output = st.text_input("Require output", value="")
         required_software = st.text_input("Required software", value="")
-        frequency = st.selectbox("Частота", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=5)
+        frequency = st.selectbox("Frequency", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=5)
         locked = st.text_input("Locked", value="")
-        role = st.text_input("Роль", value="")
-        type_val = st.text_input("Тип", value="common")
+        role = st.text_input("Role", value="")
+        type_val = st.text_input("Type", value="common")
         vbuser_id = st.text_input("VB user id", value="")
-        submitted = st.form_submit_button("Создать")
+        submitted = st.form_submit_button("Create")
         if submitted:
             payload = {
                 "name": name.strip(),
@@ -48,7 +48,7 @@ def create_job():
                 payload["frequency"] = frequency
             try:
                 data = get_client().post("/jobs", payload)
-                st.success("Создано")
+                st.success("Created")
                 render_json_response(data)
             except ApiError as e:
                 render_error(e)
@@ -56,8 +56,8 @@ def create_job():
 
 def list_jobs():
     with st.form("list_jobs"):
-        name = st.text_input("Фильтр по имени", value="")
-        submitted = st.form_submit_button("Получить список")
+        name = st.text_input("Filter by name", value="")
+        submitted = st.form_submit_button("Fetch list")
         if submitted:
             params = {"name": name.strip()} if name.strip() else None
             try:
@@ -69,8 +69,8 @@ def list_jobs():
 
 def get_job():
     with st.form("get_job"):
-        identifier = st.text_input("Имя или UID")
-        submitted = st.form_submit_button("Получить")
+        identifier = st.text_input("Name or UID")
+        submitted = st.form_submit_button("Fetch")
         if submitted:
             try:
                 data = get_client().get(f"/jobs/{identifier.strip()}")
@@ -81,16 +81,16 @@ def get_job():
 
 def update_job():
     with st.form("update_job"):
-        identifier = st.text_input("Имя или UID для обновления")
-        description = st.text_area("Описание", value="")
-        command = st.text_area("Команда", value="")
+        identifier = st.text_input("Name or UID to update")
+        description = st.text_area("Description", value="")
+        command = st.text_area("Command", value="")
         require_output = st.text_input("Require output", value="")
         required_software = st.text_input("Required software", value="")
-        frequency = st.selectbox("Частота", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
+        frequency = st.selectbox("Frequency", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
         locked = st.text_input("Locked", value="")
-        role = st.text_input("Роль", value="")
-        type_val = st.text_input("Тип", value="")
-        submitted = st.form_submit_button("Обновить")
+        role = st.text_input("Role", value="")
+        type_val = st.text_input("Type", value="")
+        submitted = st.form_submit_button("Update")
         if submitted:
             payload = {}
             if description:
@@ -111,7 +111,7 @@ def update_job():
                 payload["type"] = type_val
             try:
                 data = get_client().patch(f"/jobs/{identifier.strip()}", payload)
-                st.success("Обновлено")
+                st.success("Updated")
                 render_json_response(data)
             except ApiError as e:
                 render_error(e)
@@ -119,12 +119,12 @@ def update_job():
 
 def delete_job():
     with st.form("delete_job"):
-        identifier = st.text_input("Имя или UID для удаления")
-        submitted = st.form_submit_button("Удалить")
+        identifier = st.text_input("Name or UID to delete")
+        submitted = st.form_submit_button("Delete")
         if submitted:
             try:
                 data = get_client().delete(f"/jobs/{identifier.strip()}")
-                st.warning("Удалено")
+                st.warning("Deleted")
                 render_json_response(data)
             except ApiError as e:
                 render_error(e)
@@ -132,9 +132,9 @@ def delete_job():
 
 def jobs_by_role():
     with st.form("jobs_by_role"):
-        role = st.text_input("Роль")
-        frequency = st.selectbox("Частота", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
-        submitted = st.form_submit_button("Получить")
+        role = st.text_input("Role")
+        frequency = st.selectbox("Frequency", ["", "1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
+        submitted = st.form_submit_button("Fetch")
         if submitted:
             params = {"frequency": frequency} if frequency else None
             try:
@@ -146,8 +146,8 @@ def jobs_by_role():
 
 def jobs_by_frequency():
     with st.form("jobs_by_frequency"):
-        frequency = st.selectbox("Частота", ["1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
-        submitted = st.form_submit_button("Получить")
+        frequency = st.selectbox("Frequency", ["1", "15", "60", "1440", "first_boot", "every_boot", "once"], index=0)
+        submitted = st.form_submit_button("Fetch")
         if submitted:
             try:
                 data = get_client().get(f"/jobs/frequency/{frequency}")
@@ -156,28 +156,32 @@ def jobs_by_frequency():
                 render_error(e)
 
 
+def logout():
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.ws_log = []
+    st.session_state.ws_connected = False
+    st.switch_page("app.py")
+
+
 def page():
     require_auth()
     st.title("Jobs")
-    st.caption(f"База API: {st.session_state.get('api_base_url')}")
-    if st.button("Выйти"):
-        st.session_state.authenticated = False
-        st.session_state.username = None
-        st.session_state.ws_log = []
-        st.session_state.ws_connected = False
-        st.switch_page("app.py")
+    render_nav("Jobs")
+    if st.button("Sign out"):
+        logout()
     options = {
-        "Создать": create_job,
-        "Список": list_jobs,
-        "Получить": get_job,
-        "Обновить": update_job,
-        "Удалить": delete_job,
-        "По роли": jobs_by_role,
-        "По частоте": jobs_by_frequency,
+        "Create": create_job,
+        "List": list_jobs,
+        "Get": get_job,
+        "Update": update_job,
+        "Delete": delete_job,
+        "By role": jobs_by_role,
+        "By frequency": jobs_by_frequency,
     }
     cols = st.columns([1, 3])
     with cols[0]:
-        choice = st.radio("Операция", list(options.keys()))
+        choice = st.radio("Action", list(options.keys()))
     with cols[1]:
         render_card(choice, options[choice])
 

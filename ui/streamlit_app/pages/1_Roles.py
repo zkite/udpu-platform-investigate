@@ -2,16 +2,16 @@ import json
 import streamlit as st
 
 from client.api_client import ApiClient, ApiError
-from ui.components import inject_css, render_card, render_json_response, render_error
+from ui.components import inject_css, render_card, render_json_response, render_error, render_nav
 
 st.set_page_config(page_title="Roles", layout="wide")
 
-inject_css()
+inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Нужен вход")
-        if st.button("К логину"):
+        st.error("Sign in required")
+        if st.button("Go to login"):
             st.switch_page("app.py")
         st.stop()
 
@@ -23,12 +23,12 @@ def get_client():
 def create_role_section():
     def body():
         with st.form("create_role"):
-            name = st.text_input("Имя роли")
-            description = st.text_area("Описание")
+            name = st.text_input("Role name")
+            description = st.text_area("Description")
             wireguard = st.checkbox("Wireguard tunnel", value=False)
             job_control = st.checkbox("Job control", value=False)
-            interfaces_raw = st.text_area("Interfaces JSON (опционально)", value="", height=120)
-            submitted = st.form_submit_button("Создать")
+            interfaces_raw = st.text_area("Interfaces JSON (optional)", value="", height=120)
+            submitted = st.form_submit_button("Create")
             if submitted:
                 payload = {
                     "name": name.strip(),
@@ -40,39 +40,39 @@ def create_role_section():
                     try:
                         payload["interfaces"] = json.loads(interfaces_raw)
                     except json.JSONDecodeError:
-                        st.error("Некорректный JSON интерфейсов")
+                        st.error("Invalid JSON")
                         return
                 try:
                     data = get_client().post("/roles", payload)
-                    st.success("Создано")
+                    st.success("Created")
                     render_json_response(data)
                 except ApiError as e:
                     render_error(e)
-    render_card("Создать роль", body)
+    render_card("Create role", body)
 
 
 def clone_role_section():
     def body():
         with st.form("clone_role"):
-            name = st.text_input("Имя исходной роли")
-            new_name = st.text_input("Новое имя роли")
-            submitted = st.form_submit_button("Клонировать")
+            name = st.text_input("Source role")
+            new_name = st.text_input("New role name")
+            submitted = st.form_submit_button("Clone")
             if submitted:
                 payload = {"name": name.strip(), "new_role_name": new_name.strip()}
                 try:
                     data = get_client().post("/roles/clone", payload)
-                    st.success("Клонировано")
+                    st.success("Cloned")
                     render_json_response(data)
                 except ApiError as e:
                     render_error(e)
-    render_card("Клонировать роль", body)
+    render_card("Clone role", body)
 
 
 def list_roles_section():
     def body():
         col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("Обновить список"):
+            if st.button("Refresh"):
                 st.session_state["roles_reload"] = True
         roles = []
         if st.session_state.get("roles_reload") is None:
@@ -87,18 +87,18 @@ def list_roles_section():
         else:
             roles = st.session_state.get("roles_cache", [])
         if not roles:
-            st.info("Нет ролей")
+            st.info("No roles")
             return
         st.dataframe(roles, use_container_width=True)
         for role in roles:
             with st.expander(role.get("name", "")):
                 st.json(role)
                 with st.form(f"update_{role.get('name')}"):
-                    new_name = st.text_input("Имя", value=role.get("name", ""))
-                    description = st.text_area("Описание", value=role.get("description", ""))
+                    new_name = st.text_input("Name", value=role.get("name", ""))
+                    description = st.text_area("Description", value=role.get("description", ""))
                     wireguard = st.checkbox("Wireguard", value=bool(role.get("wireguard_tunnel")))
                     job_control = st.checkbox("Job control", value=bool(role.get("job_control")))
-                    submitted = st.form_submit_button("Обновить")
+                    submitted = st.form_submit_button("Update")
                     if submitted:
                         payload = {
                             "name": new_name.strip(),
@@ -108,35 +108,39 @@ def list_roles_section():
                         }
                         try:
                             data = get_client().patch(f"/roles/{role.get('name')}", payload)
-                            st.success("Обновлено")
+                            st.success("Updated")
                             render_json_response(data)
                             st.session_state["roles_reload"] = True
                         except ApiError as e:
                             render_error(e)
                 with st.form(f"delete_{role.get('name')}"):
-                    confirm = st.text_input("Введите имя для удаления", value="")
-                    submitted = st.form_submit_button("Удалить")
+                    confirm = st.text_input("Type name to delete", value="")
+                    submitted = st.form_submit_button("Delete")
                     if submitted and confirm == role.get("name"):
                         try:
                             data = get_client().delete(f"/roles/{role.get('name')}")
-                            st.warning("Удалено")
+                            st.warning("Deleted")
                             render_json_response(data)
                             st.session_state["roles_reload"] = True
                         except ApiError as e:
                             render_error(e)
-    render_card("Список ролей", body)
+    render_card("Roles list", body)
+
+
+def logout():
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.ws_log = []
+    st.session_state.ws_connected = False
+    st.switch_page("app.py")
 
 
 def page():
     require_auth()
     st.title("Roles")
-    st.caption(f"База API: {st.session_state.get('api_base_url')}")
-    if st.button("Выйти"):
-        st.session_state.authenticated = False
-        st.session_state.username = None
-        st.session_state.ws_log = []
-        st.session_state.ws_connected = False
-        st.switch_page("app.py")
+    render_nav("Roles")
+    if st.button("Sign out"):
+        logout()
     create_role_section()
     clone_role_section()
     list_roles_section()
