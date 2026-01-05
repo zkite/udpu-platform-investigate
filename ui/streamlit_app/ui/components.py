@@ -64,29 +64,31 @@ def status_badge(text):
 
 
 def render_nav(active):
-    labels = [
-        ("Роли", "pages/1_Roles.py"),
-        ("VBCE", "pages/2_VBCE.py"),
-        ("Jobs", "pages/3_Jobs.py"),
-        ("Execute", "pages/4_Execute_WS.py"),
-        ("Env", "pages/5_Environment.py"),
+    items = [
+        ("ROLES", "pages/1_Roles.py", "🛡️"),
+        ("VBCE", "pages/2_VBCE.py", "📡"),
+        ("UDPU", None, "🛰️"),
+        ("JOBS", "pages/3_Jobs.py", "📋"),
+        ("EXECUTE", "pages/4_Execute_WS.py", "⚡"),
+        ("ENVIRONMENTS", "pages/5_Environment.py", "🌐"),
     ]
-    with st.container():
-        top = st.columns([1.4, 3, 1.2], gap="large")
-        with top[0]:
-            st.markdown("<div class='brand-badge'>UDPU Console</div><p class='brand-sub'>Minimal control center</p>", unsafe_allow_html=True)
-        with top[1]:
-            btn_cols = st.columns(len(labels))
-            for (label, target), col in zip(labels, btn_cols):
-                with col:
-                    if st.button(label, use_container_width=True, disabled=label == active, key=f"nav_{label}"):
-                        st.switch_page(target)
-        with top[2]:
-            theme_toggle("nav")
-            if st.button("Sign out", use_container_width=True, key="nav_sign_out"):
-                st.session_state["nav_logout"] = True
-        st.markdown('<div class="nav-underline"></div>', unsafe_allow_html=True)
-    content_col = st.container()
+    layout = st.columns([0.23, 0.77], gap="large")
+    with layout[0]:
+        st.markdown("<div class='sidebar'>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-badge'>UDPU Console</div>", unsafe_allow_html=True)
+        st.markdown("<p class='brand-sub'>Data-first control</p>", unsafe_allow_html=True)
+        for label, target, icon in items:
+            disabled = label == active.upper() or target is None
+            if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{label}", disabled=disabled):
+                if target:
+                    st.switch_page(target)
+        st.markdown("<div class='sidebar-actions'>", unsafe_allow_html=True)
+        theme_toggle("nav")
+        if st.button("Sign out", use_container_width=True, key="nav_sign_out"):
+            st.session_state["nav_logout"] = True
+        st.markdown("</div></div>", unsafe_allow_html=True)
+    content_col = layout[1].container()
+    content_col.markdown("<div class='content-area'>", unsafe_allow_html=True)
     return content_col
 
 

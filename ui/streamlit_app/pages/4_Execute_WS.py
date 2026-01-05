@@ -126,7 +126,7 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Выполнить")
+    content = render_nav("EXECUTE")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
@@ -136,6 +136,7 @@ def page():
             connect_section()
         with cols[1]:
             actions_section()
+    content.markdown("</div>", unsafe_allow_html=True)
 
 
 page()

@@ -166,7 +166,7 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Задания")
+    content = render_nav("JOBS")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
@@ -185,6 +185,7 @@ def page():
             choice = st.radio("Действие", list(options.keys()))
         with cols[1]:
             render_card(choice, options[choice])
+    content.markdown("</div>", unsafe_allow_html=True)
 
 
 page()

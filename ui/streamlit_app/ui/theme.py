@@ -1,16 +1,16 @@
 THEMES = {
     "dark": {
         "primary": "#22d3ee",
-        "background": "#0b1120",
-        "surface": "#0f172a",
-        "surface_alt": "#111827",
-        "text": "#e5e7eb",
-        "muted": "#9ca3af",
-        "border": "#1f2937",
-        "danger": "#f87171",
-        "success": "#34d399",
+        "background": "#0a0f1a",
+        "surface": "#0d1524",
+        "surface_alt": "#111a2b",
+        "text": "#e4e7ec",
+        "muted": "#8b95a7",
+        "border": "#182132",
+        "danger": "#f06b68",
+        "success": "#3dd598",
         "glow": "0 0 20px rgba(34,211,238,0.25)",
-        "accent": "#38bdf8"
+        "accent": "#3a7bff"
     },
     "light": {
         "primary": "#0ea5e9",
@@ -77,8 +77,8 @@ def theme_style(theme):
   --shadow-glow: {glow};
   --glass: {"rgba(15,23,42,0.7)" if is_dark else "rgba(255,255,255,0.9)"};
   --glass-border: {"rgba(255,255,255,0.06)" if is_dark else "rgba(15,23,42,0.06)"};
-  --gradient-1: {"radial-gradient(circle at 20% 20%, rgba(34,211,238,0.08), transparent 40%), radial-gradient(circle at 80% 0%, rgba(56,189,248,0.08), transparent 38%), #0b1120" if is_dark else "radial-gradient(circle at 10% 20%, rgba(14,165,233,0.08), transparent 40%), radial-gradient(circle at 80% 10%, rgba(34,211,238,0.08), transparent 38%), #f8fafc"};
-  --gradient-2: none;
+  --gradient-1: {colors['background']};
+  --gradient-2: {colors['background']};
   --ring: {"rgba(139,123,255,0.35)" if is_dark else "rgba(59,130,246,0.35)"};
   --spacing-xs: {SPACING['xs']};
   --spacing-sm: {SPACING['sm']};

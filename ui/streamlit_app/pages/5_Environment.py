@@ -43,13 +43,14 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Env")
+    content = render_nav("ENVIRONMENTS")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
         page_header("Environment", "Active variables and connection settings")
         rows = env_items()
         render_card("Environment variables", lambda: st.table(rows))
+    content.markdown("</div>", unsafe_allow_html=True)
 
 
 page()
