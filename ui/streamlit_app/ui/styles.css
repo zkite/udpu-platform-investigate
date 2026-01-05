@@ -1,19 +1,27 @@
 [data-testid="stAppViewContainer"] {
-  background: radial-gradient(120% 120% at 15% 20%, rgba(109,199,255,0.12), transparent 40%),
-    radial-gradient(120% 120% at 80% 0%, rgba(53,130,255,0.12), transparent 38%),
-    radial-gradient(120% 120% at 50% 90%, rgba(46,213,115,0.08), transparent 35%),
-    var(--background);
+  background: var(--gradient-1), var(--background);
+  position: relative;
+}
+
+[data-testid="stAppViewContainer"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--gradient-2);
+  filter: blur(120px);
+  opacity: 0.9;
+  z-index: -1;
 }
 
 [data-testid="stAppViewContainer"] > .main {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: var(--spacing-lg);
+  padding: calc(var(--spacing-lg) + 8px) var(--spacing-lg) 96px;
 }
 
 body, .main {
   color: var(--text);
-  font-family: "Inter", "SF Pro Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 .block-container {
@@ -21,9 +29,10 @@ body, .main {
 }
 
 section[data-testid="stSidebar"] > div {
-  background: var(--surface);
-  border-left: 1px solid var(--border);
+  background: var(--glass);
+  border-left: 1px solid var(--glass-border);
   box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(18px);
 }
 
 section[data-testid="stSidebar"] label {
@@ -35,28 +44,34 @@ section[data-testid="stSidebar"] label {
 .stTextArea textarea,
 .stSelectbox > div > div > div > input,
 .stNumberInput input {
-  background: rgba(255,255,255,0.02);
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+.stCheckbox label,
+.stRadio label {
   color: var(--text);
 }
 
 .stButton > button {
   width: 100%;
-  background: linear-gradient(135deg, var(--primary), #69c4f6);
-  color: #0b1020;
-  border: none;
-  border-radius: var(--radius-sm);
+  background: linear-gradient(130deg, var(--primary), var(--accent));
+  color: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-weight: 700;
-  box-shadow: var(--shadow-soft);
-  transition: transform 0.08s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .stButton > button:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-strong);
-  filter: brightness(1.02);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-strong), var(--shadow-glow);
+  filter: brightness(1.03);
 }
 
 .stButton > button:disabled {
@@ -71,38 +86,55 @@ section[data-testid="stSidebar"] label {
 }
 
 .card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.02), var(--panel));
-  border-radius: var(--radius-md);
-  padding: calc(var(--spacing-md) + 2px);
+  background: var(--glass);
+  border-radius: 18px;
+  padding: calc(var(--spacing-md) + 4px);
   box-shadow: var(--shadow-soft);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   margin-bottom: var(--spacing-lg);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
 }
 
-.card h3 {
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, transparent, var(--panel-strong));
+  pointer-events: none;
+}
+
+.card-title {
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--text);
-  font-size: 20px;
-  letter-spacing: -0.01em;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .card .card-body {
   color: var(--text);
+  position: relative;
+  z-index: 1;
 }
 
 .code-block {
   background: var(--code-bg);
   color: var(--text);
   padding: var(--spacing-md);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--code-border);
   overflow-x: auto;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .table-wrap table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--panel);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 .table-wrap th,
@@ -115,7 +147,8 @@ section[data-testid="stSidebar"] label {
 .table-wrap th {
   text-align: left;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .button-row {
@@ -127,9 +160,9 @@ section[data-testid="stSidebar"] label {
 .ws-log {
   background: var(--code-bg);
   padding: var(--spacing-md);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   border: 1px solid var(--code-border);
-  max-height: 400px;
+  max-height: 420px;
   overflow-y: auto;
 }
 
@@ -139,25 +172,98 @@ section[data-testid="stSidebar"] label {
   font-size: 13px;
 }
 
-.nav-panel {
-  background: linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
+  box-shadow: var(--shadow-soft);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.brand-sub {
+  color: var(--muted);
+  margin: var(--spacing-xs) 0 0 2px;
+  font-weight: 600;
+}
+
+.nav-underline {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: var(--spacing-md) 0 var(--spacing-lg);
+}
+
+.page-hero {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.page-hero::before {
+  content: "";
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  top: -120px;
+  right: -80px;
+  background: radial-gradient(circle at center, var(--accent), transparent 60%);
+  opacity: 0.18;
+}
+
+.hero-title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.hero-sub {
+  color: var(--muted);
+  font-size: 16px;
+  margin: 6px 0 14px;
+}
+
+.hero-meta {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  position: sticky;
-  top: var(--spacing-md);
+  gap: 12px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.hero-meta span {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.login-wrapper {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 28px;
   box-shadow: var(--shadow-soft);
 }
 
-.nav-panel .stButton button {
-  width: 100%;
+.login-title {
+  font-weight: 900;
+  font-size: 28px;
+  margin-bottom: var(--spacing-sm);
 }
 
-.nav-panel .stToggle {
-  margin-bottom: var(--spacing-sm);
+.login-sub {
+  color: var(--muted);
+  margin-bottom: var(--spacing-md);
 }
 
 .st-emotion-cache-16idsys p,

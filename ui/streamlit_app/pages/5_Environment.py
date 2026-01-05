@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 
-from ui.components import inject_css, render_card, render_nav
+from ui.components import inject_css, render_card, render_nav, page_header
 
 st.set_page_config(page_title="Environment", layout="wide", menu_items={"Get help": None, "Report a bug": None, "About": None})
 
@@ -10,8 +10,8 @@ inject_css(st.session_state.get("theme", "dark"))
 
 def require_auth():
     if not st.session_state.get("authenticated"):
-        st.error("Sign in required")
-        if st.button("Go to login"):
+        st.error("Требуется вход")
+        if st.button("Перейти к логину"):
             st.switch_page("app.py")
         st.stop()
 
@@ -43,13 +43,13 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Environment")
+    content = render_nav("Окружение")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
-        st.title("Environment")
+        page_header("Окружение", "Активные переменные и настройки подключения")
         rows = env_items()
-        render_card("Backend environment variables", lambda: st.table(rows))
+        render_card("Параметры окружения", lambda: st.table(rows))
 
 
 page()

@@ -19,15 +19,18 @@ def inject_css(theme):
 
 
 def theme_toggle(label="Темная тема"):
-    value = st.session_state.get("theme", "dark") == "dark"
-    enabled = st.toggle(label, value=value, key="theme_toggle")
-    st.session_state.theme = "dark" if enabled else "light"
+    current = st.session_state.get("theme", "dark")
+    next_theme = "light" if current == "dark" else "dark"
+    icon = "🌙" if current == "dark" else "☀️"
+    caption = "Тёмная" if current == "dark" else "Светлая"
+    if st.button(f"{icon} {caption} тема", key=f"theme_btn_{label}", use_container_width=True):
+        st.session_state.theme = next_theme
 
 
 def render_card(title, body_fn):
     with st.container():
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown(f"<h3>{title}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<div class='card-title'>{title}</div>", unsafe_allow_html=True)
         st.markdown('<div class="card-body">', unsafe_allow_html=True)
         body_fn()
         st.markdown('</div></div>', unsafe_allow_html=True)
@@ -61,21 +64,47 @@ def status_badge(text):
 
 
 def render_nav(active):
-    nav_col, content_col = st.columns([1, 5], gap="large")
     labels = [
-        ("Roles", "pages/1_Roles.py"),
+        ("Роли", "pages/1_Roles.py"),
         ("VBCE", "pages/2_VBCE.py"),
-        ("Jobs", "pages/3_Jobs.py"),
-        ("Execute", "pages/4_Execute_WS.py"),
-        ("Environment", "pages/5_Environment.py"),
+        ("Задания", "pages/3_Jobs.py"),
+        ("Выполнить", "pages/4_Execute_WS.py"),
+        ("Окружение", "pages/5_Environment.py"),
     ]
-    with nav_col:
-        st.markdown('<div class="nav-panel">', unsafe_allow_html=True)
-        for label, target in labels:
-            if st.button(label, disabled=label == active, use_container_width=True, key=f"nav_{label}"):
-                st.switch_page(target)
-        theme_toggle()
-        if st.button("Sign Out", use_container_width=True, key="nav_sign_out"):
-            st.session_state["nav_logout"] = True
-        st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        top = st.columns([1.6, 3, 1.6], gap="large")
+        with top[0]:
+            st.markdown("<div class='brand-badge'>UDPU Platform</div><p class='brand-sub'>Консоль управления</p>", unsafe_allow_html=True)
+        with top[1]:
+            btn_cols = st.columns(len(labels))
+            for (label, target), col in zip(labels, btn_cols):
+                with col:
+                    if st.button(label, use_container_width=True, disabled=label == active, key=f"nav_{label}"):
+                        st.switch_page(target)
+        with top[2]:
+            theme_toggle("nav")
+            if st.button("Выйти", use_container_width=True, key="nav_sign_out"):
+                st.session_state["nav_logout"] = True
+        st.markdown('<div class="nav-underline"></div>', unsafe_allow_html=True)
+    content_col = st.container()
     return content_col
+
+
+def page_header(title, subtitle=None, extra=None):
+    labels = [
+        ("🛡️", "Роли и доступы"),
+        ("🛰️", "uDPU и VBCE"),
+        ("⚡", "Команды и события"),
+    ]
+    with st.container():
+        st.markdown('<div class="page-hero">', unsafe_allow_html=True)
+        st.markdown(f"<div class='hero-title'>{title}</div>", unsafe_allow_html=True)
+        if subtitle:
+            st.markdown(f"<p class='hero-sub'>{subtitle}</p>", unsafe_allow_html=True)
+        st.markdown('<div class="hero-meta">', unsafe_allow_html=True)
+        for icon, text in labels:
+            st.markdown(f"<span>{icon} {text}</span>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        if extra:
+            extra()
+        st.markdown("</div>", unsafe_allow_html=True)
