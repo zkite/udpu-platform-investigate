@@ -170,6 +170,7 @@ def page():
         with cols[1]:
             manage_vbce_section()
         list_vbce_section()
+    content.markdown("</div>", unsafe_allow_html=True)
 
 
 page()

@@ -137,7 +137,7 @@ def logout():
 
 def page():
     require_auth()
-    content = render_nav("Роли")
+    content = render_nav("ROLES")
     if st.session_state.pop("nav_logout", False):
         logout()
     with content:
@@ -148,6 +148,7 @@ def page():
         with cols[1]:
             clone_role_section()
         list_roles_section()
+    content.markdown("</div>", unsafe_allow_html=True)
 
 
 page()
