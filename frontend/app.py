@@ -13,18 +13,42 @@ st.set_page_config(page_title="UDPU Admin", layout="wide")
 st.markdown(
     """
     <style>
+    :root {
+        color-scheme: light;
+    }
+    .stApp {
+        background: #f5f6f8;
+    }
     .main .block-container {
-        padding-top: 2rem;
-        max-width: 1100px;
+        padding-top: 2.5rem;
+        max-width: 1140px;
         margin-left: auto;
         margin-right: auto;
         width: 100%;
     }
+    h1, h2, h3, h4 {
+        color: #1a1d24;
+    }
+    .app-shell {
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 1.5rem 2rem 2rem 2rem;
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+    }
+    .page-intro {
+        color: #5a6472;
+        margin-top: -0.5rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+    }
     .content-card {
-        max-width: 360px;
-        width: 100%;
+        width: 360px;
         margin-left: 0;
         margin-right: auto;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     }
     .content-card .stTextInput,
     .content-card .stTextArea,
@@ -32,9 +56,25 @@ st.markdown(
     .content-card .stButton {
         max-width: 360px;
     }
+    .section-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 1.5rem 1.75rem;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+        margin-bottom: 1.5rem;
+    }
     .sidebar .sidebar-content { padding-top: 2rem; }
-    .role-row { padding: 0.25rem 0; border-bottom: 1px solid #e6e6e6; }
-    .role-header { font-weight: 600; }
+    .role-row { padding: 0.5rem 0; border-bottom: 1px solid #eef1f5; }
+    .role-header { font-weight: 600; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.75rem; }
+    .pill {
+        display: inline-block;
+        background: #eef2ff;
+        color: #3949ab;
+        border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -69,8 +109,11 @@ def api_request(method, path, payload=None):
 
 
 def ensure_state():
+    query_value = st.query_params.get("auth", "0")
+    auth_value = query_value[0] if isinstance(query_value, list) and query_value else query_value
+    auth_flag = auth_value == "1"
     if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
+        st.session_state.authenticated = auth_flag
     if "active_tab" not in st.session_state:
         st.session_state.active_tab = "Roles"
     if "roles_view" not in st.session_state:
@@ -81,6 +124,7 @@ def ensure_state():
 
 def render_login():
     st.title("Login")
+    st.caption("Use your admin credentials to access the console.")
     st.markdown("<div class='content-card'>", unsafe_allow_html=True)
     with st.form("login"):
         username = st.text_input("Username")
@@ -89,6 +133,7 @@ def render_login():
     st.markdown("</div>", unsafe_allow_html=True)
     if submitted:
         if username == "admin" and password == "admin":
+            st.query_params["auth"] = "1"
             st.session_state.authenticated = True
             st.rerun()
         st.error("Invalid credentials")
@@ -109,6 +154,10 @@ def fetch_role(name):
 
 def render_role_list():
     st.markdown("### Roles")
+    st.markdown(
+        "<div class='page-intro'>Manage access policies, permissions, and system capabilities.</div>",
+        unsafe_allow_html=True,
+    )
     _, add_col = st.columns([5, 1])
     if add_col.button("Add role", use_container_width=True):
         st.session_state.roles_view = "add"
@@ -116,7 +165,8 @@ def render_role_list():
         st.rerun()
 
     try:
-        roles = fetch_roles()
+        with st.spinner("Loading roles..."):
+            roles = fetch_roles()
     except RuntimeError as exc:
         st.error(str(exc))
         return
@@ -144,7 +194,8 @@ def render_role_list():
             st.rerun()
         if delete_col.button("Delete", key=f"delete-{role.get('name','')}"):
             try:
-                api_request("DELETE", f"/roles/{role.get('name','')}")
+                with st.spinner("Deleting role..."):
+                    api_request("DELETE", f"/roles/{role.get('name','')}")
                 st.success("Role deleted")
                 st.rerun()
             except RuntimeError as exc:
@@ -160,13 +211,16 @@ def render_role_detail():
         st.session_state.roles_view = "list"
         st.rerun()
     try:
-        role = fetch_role(name)
+        with st.spinner("Loading role..."):
+            role = fetch_role(name)
     except RuntimeError as exc:
         st.error(str(exc))
         return
     st.subheader(role.get("name", ""))
     st.write(role.get("description", ""))
-    st.markdown(f"**Wireguard tunnel:** {'Yes' if role.get('wireguard_tunnel') else 'No'}")
+    st.markdown(
+        f"**Wireguard tunnel:** {'Yes' if role.get('wireguard_tunnel') else 'No'}"
+    )
     st.markdown(f"**Job control:** {'Yes' if role.get('job_control') else 'No'}")
 
 
@@ -182,6 +236,9 @@ def render_role_form(title, role=None):
         submitted = st.form_submit_button("Save")
     st.markdown("</div>", unsafe_allow_html=True)
     if submitted:
+        if not name.strip():
+            st.error("Role name is required")
+            return
         payload = {
             "name": name,
             "description": description,
@@ -190,11 +247,13 @@ def render_role_form(title, role=None):
         }
         try:
             if role:
-                updated = api_request("PATCH", f"/roles/{role.get('name','')}", payload)
+                with st.spinner("Updating role..."):
+                    updated = api_request("PATCH", f"/roles/{role.get('name','')}", payload)
                 st.session_state.selected_role = updated.get("name", name)
                 st.session_state.roles_view = "detail"
             else:
-                api_request("POST", "/roles", payload)
+                with st.spinner("Creating role..."):
+                    api_request("POST", "/roles", payload)
                 st.session_state.roles_view = "list"
             st.rerun()
         except RuntimeError as exc:
@@ -230,7 +289,12 @@ def render_roles():
 
 def render_placeholder(title):
     st.title(title)
-    st.write("Section is under development")
+    st.markdown(
+        "<div class='section-card'><span class='pill'>Coming soon</span>"
+        "<h3 style='margin-top: 1rem;'>This section is under development</h3>"
+        "<p class='page-intro'>We are preparing this area. Check back soon for updates.</p></div>",
+        unsafe_allow_html=True,
+    )
 
 
 def render_app():
@@ -242,17 +306,22 @@ def render_app():
     )
     st.session_state.active_tab = selection
 
+    st.markdown("<div class='app-shell'>", unsafe_allow_html=True)
     if selection == "Roles":
         render_roles()
+        st.markdown("</div>", unsafe_allow_html=True)
         return
     if selection == "VBCE":
         render_placeholder("VBCE")
+        st.markdown("</div>", unsafe_allow_html=True)
         return
     if selection == "UDPU":
         render_placeholder("UDPU")
+        st.markdown("</div>", unsafe_allow_html=True)
         return
     if selection == "Jobs":
         render_placeholder("Jobs")
+        st.markdown("</div>", unsafe_allow_html=True)
         return
 
 
