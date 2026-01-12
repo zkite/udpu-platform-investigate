@@ -5,7 +5,7 @@ import urllib.request
 
 import streamlit as st
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api-service:8888/api/v1.0")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api-service:8888")
 
 st.set_page_config(page_title="UDPU Admin", layout="wide")
 
@@ -20,18 +20,16 @@ st.markdown(
         width: 100%;
     }
     .content-card {
-        max-width: 780px;
+        max-width: 820px;
         width: 100%;
         margin-left: 0;
         margin-right: auto;
-        display: inline-block;
     }
-    .content-card .stTextInput > div > div > input,
-    .content-card .stTextArea textarea,
+    .content-card .stTextInput,
+    .content-card .stTextArea,
     .content-card .stCheckbox,
-    .content-card .stButton > button {
-        max-width: 780px;
-        width: 100%;
+    .content-card .stButton {
+        max-width: 820px;
     }
     .sidebar .sidebar-content { padding-top: 2rem; }
     .role-row { padding: 0.25rem 0; border-bottom: 1px solid #e6e6e6; }
@@ -43,8 +41,7 @@ st.markdown(
 
 
 def api_request(method, path, payload=None):
-    base_url = API_BASE_URL.rstrip("/")
-    url = f"{base_url}{path}"
+    url = f"{API_BASE_URL}{path}"
     data = None
     headers = {"Content-Type": "application/json"}
     if payload is not None:
@@ -62,7 +59,7 @@ def api_request(method, path, payload=None):
             detail = json.loads(message)
         except json.JSONDecodeError:
             detail = {"message": message}
-        raise RuntimeError(detail.get("message", exc.reason or "Request failed")) from exc
+        raise RuntimeError(detail.get("message", "Request failed")) from exc
     except urllib.error.URLError as exc:
         raise RuntimeError("API is unavailable") from exc
 
