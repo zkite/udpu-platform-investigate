@@ -62,22 +62,6 @@ services:
     volumes:
       - /lib/modules:/lib/modules:ro
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    environment:
-      - API_BASE_URL=http://localhost:8888
-      - STREAMLIT_SERVER_PORT=8501
-    ports:
-      - "8501:8501"
-    depends_on:
-      - api-service
-    networks:
-      - backend
-
-
   client-1:
     build:
       context: /Users/admin/projects/go/udpu-client-golang/dist
