@@ -14,10 +14,22 @@ st.markdown(
     <style>
     .main .block-container {
         padding-top: 2rem;
-        max-width: 980px;
+        max-width: 1100px;
         margin-left: auto;
         margin-right: auto;
         width: 100%;
+    }
+    .content-card {
+        max-width: 820px;
+        width: 100%;
+        margin-left: 0;
+        margin-right: auto;
+    }
+    .content-card .stTextInput,
+    .content-card .stTextArea,
+    .content-card .stCheckbox,
+    .content-card .stButton {
+        max-width: 820px;
     }
     .sidebar .sidebar-content { padding-top: 2rem; }
     .role-row { padding: 0.25rem 0; border-bottom: 1px solid #e6e6e6; }
@@ -65,10 +77,12 @@ def ensure_state():
 
 def render_login():
     st.title("Login")
+    st.markdown("<div class='content-card'>", unsafe_allow_html=True)
     with st.form("login"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         submitted = st.form_submit_button("Sign in")
+    st.markdown("</div>", unsafe_allow_html=True)
     if submitted:
         if username == "admin" and password == "admin":
             st.session_state.authenticated = True
@@ -155,12 +169,14 @@ def render_role_detail():
 def render_role_form(title, role=None):
     st.markdown(f"### {title}")
     defaults = role or {}
+    st.markdown("<div class='content-card'>", unsafe_allow_html=True)
     with st.form(title):
         name = st.text_input("Name", value=defaults.get("name", ""))
         description = st.text_area("Description", value=defaults.get("description", ""))
         wireguard_tunnel = st.checkbox("Wireguard tunnel", value=defaults.get("wireguard_tunnel", False))
         job_control = st.checkbox("Job control", value=defaults.get("job_control", False))
         submitted = st.form_submit_button("Save")
+    st.markdown("</div>", unsafe_allow_html=True)
     if submitted:
         payload = {
             "name": name,
