@@ -12,7 +12,13 @@ st.set_page_config(page_title="UDPU Admin", layout="wide")
 st.markdown(
     """
     <style>
-    .main .block-container { padding-top: 2rem; }
+    .main .block-container {
+        padding-top: 2rem;
+        max-width: 980px;
+        margin-left: auto;
+        margin-right: auto;
+        width: 100%;
+    }
     .sidebar .sidebar-content { padding-top: 2rem; }
     .role-row { padding: 0.25rem 0; border-bottom: 1px solid #e6e6e6; }
     .role-header { font-weight: 600; }
@@ -85,7 +91,7 @@ def fetch_role(name):
 
 def render_role_list():
     st.markdown("### Roles")
-    add_col, _ = st.columns([1, 5])
+    _, add_col = st.columns([5, 1])
     if add_col.button("Add role", use_container_width=True):
         st.session_state.roles_view = "add"
         st.session_state.selected_role = None
