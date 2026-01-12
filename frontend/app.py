@@ -6,6 +6,7 @@ import urllib.request
 import streamlit as st
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api-service:8888")
+API_PREFIX = "/api/v1.0"
 
 st.set_page_config(page_title="UDPU Admin", layout="wide")
 
@@ -20,7 +21,7 @@ st.markdown(
         width: 100%;
     }
     .content-card {
-        max-width: 820px;
+        max-width: 360px;
         width: 100%;
         margin-left: 0;
         margin-right: auto;
@@ -29,7 +30,7 @@ st.markdown(
     .content-card .stTextArea,
     .content-card .stCheckbox,
     .content-card .stButton {
-        max-width: 820px;
+        max-width: 360px;
     }
     .sidebar .sidebar-content { padding-top: 2rem; }
     .role-row { padding: 0.25rem 0; border-bottom: 1px solid #e6e6e6; }
@@ -41,7 +42,10 @@ st.markdown(
 
 
 def api_request(method, path, payload=None):
-    url = f"{API_BASE_URL}{path}"
+    if API_BASE_URL.endswith(API_PREFIX):
+        url = f"{API_BASE_URL}{path}"
+    else:
+        url = f"{API_BASE_URL}{API_PREFIX}{path}"
     data = None
     headers = {"Content-Type": "application/json"}
     if payload is not None:
