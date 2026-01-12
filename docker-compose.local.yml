@@ -62,6 +62,20 @@ services:
     volumes:
       - /lib/modules:/lib/modules:ro
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "8501:8501"
+    networks:
+      - backend
+    environment:
+      - API_BASE_URL=http://api-service:8888/api/v1.0
+    depends_on:
+      - api-service
+
   client-1:
     build:
       context: /Users/admin/projects/go/udpu-client-golang/dist
