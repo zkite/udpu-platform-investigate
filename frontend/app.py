@@ -285,6 +285,33 @@ def confirm_delete_role(role_name: str):
             except RuntimeError as exc:
                 st.error(str(exc))
 
+@st.dialog("Clone role?")
+def confirm_clone_role(role_name: str):
+    st.write(f"Source role: **{role_name}**")
+    new_name = st.text_input("New role name")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Clone", type="primary", use_container_width=True):
+            if not new_name.strip():
+                st.error("New role name is required")
+                return
+            try:
+                with st.spinner("Cloning role..."):
+                    api_request(
+                        "POST",
+                        "/roles/clone",
+                        {"name": role_name, "new_role_name": new_name.strip()},
+                    )
+                st.toast("Role cloned")
+                st.session_state.selected_role = new_name.strip()
+                st.session_state.roles_view = "detail"
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
 
 # -----------------------------
 # UI: Login (centered)
@@ -317,7 +344,7 @@ def _interfaces_defaults(role: dict) -> dict:
     if not isinstance(ghn_ports, list):
         ghn_ports = []
     return {
-        "management_vlan_interface": str(mgmt.get("interface", "vlan") or "vlan"),
+        "management_vlan_interface": str(mgmt.get("interface", "br-lan") or "br-lan"),
         "ghn_ports": ghn_ports,
     }
 
@@ -375,10 +402,14 @@ def render_role_detail():
     interfaces = (role.get("interfaces") or {})
     mgmt_iface = (interfaces.get("management_vlan") or {}).get("interface", "")
     ports = interfaces.get("ghn_ports") or []
+    wireguard_tunnel = bool(role.get("wireguard_tunnel", False))
+    job_control = bool(role.get("job_control", False))
 
-    c1, c2 = st.columns(2)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric("Management VLAN", mgmt_iface or "-")
     c2.metric("GHN ports", str(len(ports) if isinstance(ports, list) else 0))
+    c3.metric("Wireguard tunnel", "Enabled" if wireguard_tunnel else "Disabled")
+    c4.metric("Job control", "Enabled" if job_control else "Disabled")
 
     if isinstance(ports, list) and ports:
         if pd is not None:
@@ -400,6 +431,14 @@ def render_role_form(title: str, role=None):
         with st.form(f"form-{title}", border=False):
             name = st.text_input("Name", value=defaults.get("name", ""))
             description = st.text_area("Description", value=defaults.get("description", ""))
+            wireguard_tunnel = st.checkbox(
+                "Wireguard tunnel",
+                value=bool(defaults.get("wireguard_tunnel", False)),
+            )
+            job_control = st.checkbox(
+                "Job control",
+                value=bool(defaults.get("job_control", False)),
+            )
 
             st.markdown("##### Interfaces")
 
@@ -415,7 +454,7 @@ def render_role_form(title: str, role=None):
                 ports_df = pd.DataFrame(_normalize_ghn_ports(ghn_ports_editor_value))
                 if ports_df.empty:
                     ports_df = pd.DataFrame(
-                        [{"ghn_interface": "", "lcmp_interface": "", "vb": True}]
+                        [{"ghn_interface": "", "lcmp_interface": "", "vb": False}]
                     )
 
                 edited_ports = st.data_editor(
@@ -463,8 +502,10 @@ def render_role_form(title: str, role=None):
     payload = {
         "name": name.strip(),
         "description": description,
+        "wireguard_tunnel": wireguard_tunnel,
+        "job_control": job_control,
         "interfaces": {
-            "management_vlan": {"interface": management_vlan_interface.strip() or "vlan"},
+            "management_vlan": {"interface": management_vlan_interface.strip() or "br-lan"},
             "ghn_ports": ghn_ports or [],
         },
     }
@@ -551,7 +592,7 @@ def render_role_list():
             selected_name = str(df.iloc[selected_idx]["Name"])
             st.write(f"Selected: **{selected_name}**")
 
-            a1, a2, a3 = st.columns(3)
+            a1, a2, a3, a4 = st.columns(4)
             if a1.button("Open", use_container_width=True):
                 st.session_state.selected_role = selected_name
                 st.session_state.roles_view = "detail"
@@ -562,6 +603,8 @@ def render_role_list():
                 st.rerun()
             if a3.button("Delete", use_container_width=True):
                 confirm_delete_role(selected_name)
+            if a4.button("Clone", use_container_width=True):
+                confirm_clone_role(selected_name)
 
     else:
         for r in roles:
@@ -572,6 +615,8 @@ def render_role_list():
                 st.session_state.selected_role = r.get("name")
                 st.session_state.roles_view = "detail"
                 st.rerun()
+            if c3.button("Clone", key=f"clone-{r.get('name','')}"):
+                confirm_clone_role(r.get("name"))
 
 
 def render_roles():

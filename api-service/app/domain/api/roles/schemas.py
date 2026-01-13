@@ -52,6 +52,7 @@ class UdpuRoleUpdate(BaseModel):
     description: str
     wireguard_tunnel: bool = False
     job_control: bool = False
+    interfaces: Interface = Field(default_factory=Interface)
 
     model_config = {
         "validate_assignment": True,
