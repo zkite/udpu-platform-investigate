@@ -1157,22 +1157,30 @@ def render_udpu_form(title: str, udpu=None):
 def render_udpu_list():
     st.title("UDPU")
 
-    top_left, top_right = st.columns([6, 2])
+    # --- Auto-pick location without showing "Location" input ---
+    try:
+        locations = fetch_udpu_locations()
+    except RuntimeError:
+        locations = []
 
-    with top_left:
-        selected_location = st.text_input("Location", value=st.session_state.udpu_location)
+    # Normalize/sort
+    location_options = sorted([str(loc) for loc in locations if loc is not None])
 
-        if selected_location != st.session_state.udpu_location:
-            st.session_state.udpu_location = selected_location
-            st.rerun()
+    # If no location chosen yet, pick the first available automatically
+    if not st.session_state.udpu_location and location_options:
+        st.session_state.udpu_location = location_options[0]
+        st.rerun()
 
+    # Top row: only Add button (no Location field)
+    _, top_right = st.columns([6, 2])
     if top_right.button("Add UDPU", use_container_width=True):
         st.session_state.udpu_view = "add"
         st.session_state.selected_udpu = None
         st.rerun()
 
+    # If still no location (and none available), show info and stop
     if not st.session_state.udpu_location:
-        st.info("Select a location to view UDPU devices.")
+        st.info("No locations available.")
         return
 
     try:
