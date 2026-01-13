@@ -5,7 +5,7 @@ from redis.exceptions import ReadOnlyError, ResponseError
 
 from services.redis.exceptions import RedisResponseError
 from domain.api.northbound.dependencies import get_udpu
-from domain.api.roles.dependencies import get_udpu_role
+from domain.api.roles.dependencies import get_udpu_role, get_primary_ghn_interfaces
 from domain.api.vbce.dependencies import update_vbce, get_vbce
 from domain.api.vbce.constants import VBCE_ENTITY
 from utils import get_random_seed_index
@@ -78,15 +78,16 @@ async def create_vbuser(redis: Redis, vbuser: VBUser):
 async def delete_vbuser(redis: Redis, vbu_uid: str, location_id: str, seed_idx: int):
     try:
         vbce_name = await redis.get(location_id)
-        # todo: check if none
-        vbce_name = vbce_name
+        if not vbce_name:
+            await redis.delete(f"{VBUSER_ENTITY}:{vbu_uid}")
+            return
         vbce_key = f"{VBCE_ENTITY}:{vbce_name}"
         vbce = await get_vbce(redis, vbce_name)
-        print(f"vbce: {vbce}")
         current_users = int(vbce["current_users"])
-        vbce_seeds = vbce["seed_idx_used"]
-        vbce_seeds = vbce_seeds.split(",")
-        vbce_seeds.remove(str(seed_idx))
+        vbce_seeds = vbce.get("seed_idx_used", "")
+        vbce_seeds = vbce_seeds.split(",") if vbce_seeds else []
+        if str(seed_idx) in vbce_seeds:
+            vbce_seeds.remove(str(seed_idx))
         vbce["seed_idx_used"] = ",".join(vbce_seeds)
         if current_users == 1:
             vbce["current_users"] = current_users - 1
@@ -99,7 +100,7 @@ async def delete_vbuser(redis: Redis, vbu_uid: str, location_id: str, seed_idx: 
             vbce["current_users"] = current_users - 1
             vbce["available_users"] = int(vbce["max_users"]) - int(vbce["current_users"])
             await redis.hset(vbce_key, mapping=vbce)
-        await redis.delete(f"vbuser_{vbu_uid}")
+        await redis.delete(f"{VBUSER_ENTITY}:{vbu_uid}")
     except (ResponseError, ReadOnlyError) as e:
         logger.error(str(e))
         raise RedisResponseError(message=str(e))
@@ -112,6 +113,17 @@ async def update_vbuser(redis: Redis, vbu_uid: str, vbuser):
         await redis.hset(f"vbuser_{vbu_uid}", mapping=user)
         return user
     except (ResponseError, ReadOnlyError, Exception) as e:
+        logger.error(str(e))
+        raise RedisResponseError(message=str(e))
+
+
+async def update_vbuser_interfaces(redis: Redis, vbuser: dict, ghn_interface: str, lcmp_interface: str):
+    try:
+        vbuser["ghn_interface"] = ghn_interface
+        vbuser["lcmp_interface"] = lcmp_interface
+        await redis.hset(f"{VBUSER_ENTITY}:{vbuser['vb_uid']}", mapping=vbuser)
+        return vbuser
+    except (ResponseError, ReadOnlyError) as e:
         logger.error(str(e))
         raise RedisResponseError(message=str(e))
 
@@ -142,13 +154,9 @@ async def get_detailed_vbuser(redis: Redis, vbuser: dict):
     # get role by role name
     role = await get_udpu_role(redis, udpu["role"])
 
-    main_interface = role["interfaces"]
-    ghn_ports = main_interface["ghn_ports"]
-
-    # get interface info
-    port = ghn_ports["port_1"]
-    vbuser["ghn_interface"] = port["ghn_interface"]
-    vbuser["lcmp_interface"] = port["lcmp_interface"]
+    ghn_interface, lcmp_interface = get_primary_ghn_interfaces(role)
+    vbuser["ghn_interface"] = ghn_interface
+    vbuser["lcmp_interface"] = lcmp_interface
     return vbuser
 
 

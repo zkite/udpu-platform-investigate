@@ -19,6 +19,14 @@ async def update_vbce_location_list(redis: Redis, location_id: str):
         raise RedisResponseError(message=str(e))
 
 
+async def get_vbce_location_list(redis: Redis):
+    try:
+        return await redis.smembers(VBCE_LOCATION_LIST)
+    except (ResponseError, ReadOnlyError) as e:
+        logging.error(str(e))
+        raise RedisResponseError(message=str(e))
+
+
 async def get_vbce(redis: Redis, key: str):
     try:
         return await redis.hgetall(key)
