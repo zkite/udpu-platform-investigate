@@ -254,6 +254,16 @@ def fetch_udpu_list_by_location(location_id: str):
 def fetch_udpu(subscriber_uid: str):
     return api_request("GET", f"/subscriber/{subscriber_uid}/udpu")
 
+def fetch_jobs():
+    jobs = api_request("GET", "/jobs")
+    if isinstance(jobs, list):
+        return jobs
+    return []
+
+
+def fetch_job(identifier):
+    return api_request("GET", f"/jobs/{identifier}")
+
 
 # -----------------------------
 # State
@@ -273,6 +283,8 @@ def ensure_state():
     st.session_state.setdefault("udpu_view", "list")
     st.session_state.setdefault("selected_udpu", None)
     st.session_state.setdefault("udpu_location", "")
+    st.session_state.setdefault("jobs_view", "list")
+    st.session_state.setdefault("selected_job", None)
 
 
 def do_logout():
@@ -285,6 +297,8 @@ def do_logout():
     st.session_state.udpu_view = "list"
     st.session_state.selected_udpu = None
     st.session_state.udpu_location = ""
+    st.session_state.jobs_view = "list"
+    st.session_state.selected_job = None
 
     try:
         if "auth" in st.query_params:
@@ -392,6 +406,27 @@ def confirm_delete_udpu(subscriber_uid: str):
                 st.toast("UDPU deleted")
                 st.session_state.udpu_view = "list"
                 st.session_state.selected_udpu = None
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+@st.dialog("Delete job?")
+def confirm_delete_job(job_name):
+    st.write(f"Job: **{job_name}**")
+    st.warning("This action cannot be undone.")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Delete", type="primary", use_container_width=True):
+            try:
+                with st.spinner("Deleting job..."):
+                    api_request("DELETE", f"/jobs/{job_name}")
+                st.toast("Job deleted")
+                st.session_state.jobs_view = "list"
+                st.session_state.selected_job = None
                 st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
@@ -1248,6 +1283,292 @@ def render_udpu():
 
     render_udpu_list()
 
+def _job_frequency_options():
+    return [
+        {"value": "", "label": "Not set"},
+        {"value": "1", "label": "Every minute"},
+        {"value": "15", "label": "Every 15 minutes"},
+        {"value": "60", "label": "Every hour"},
+        {"value": "1440", "label": "Every 24 hours"},
+        {"value": "first_boot", "label": "First boot"},
+        {"value": "every_boot", "label": "Every boot"},
+        {"value": "once", "label": "Once"},
+    ]
+
+
+def _job_frequency_label(value):
+    for item in _job_frequency_options():
+        if item["value"] == value:
+            return item["label"]
+    return value
+
+
+def render_job_detail():
+    name = st.session_state.selected_job
+    if not name:
+        st.session_state.jobs_view = "list"
+        st.rerun()
+
+    top = st.columns([1, 6, 2, 2])
+    if top[0].button("← Back", use_container_width=True):
+        st.session_state.jobs_view = "list"
+        st.rerun()
+    if top[2].button("Edit", use_container_width=True):
+        st.session_state.jobs_view = "edit"
+        st.rerun()
+    if top[3].button("Delete", use_container_width=True):
+        confirm_delete_job(name)
+
+    try:
+        with st.spinner("Loading job..."):
+            job = fetch_job(name)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    st.subheader(job.get("name", ""))
+    st.write(job.get("description", ""))
+
+    frequency_value = str(job.get("frequency") or "")
+    frequency_label = _job_frequency_label(frequency_value or "")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Frequency", frequency_label or "-")
+    c2.metric("Role", job.get("role", "") or "-")
+    c3.metric("Type", job.get("type", "") or "-")
+    c4.metric("Locked", job.get("locked", "") or "-")
+
+    st.markdown("#### Command")
+    st.code(job.get("command", "") or "", language="bash")
+
+    if job.get("require_output"):
+        st.markdown("#### Require output")
+        st.code(job.get("require_output", "") or "", language="text")
+
+    if job.get("required_software"):
+        st.markdown("#### Required software")
+        st.code(job.get("required_software", "") or "", language="text")
+
+    if job.get("vbuser_id"):
+        st.markdown("#### VB user id")
+        st.write(job.get("vbuser_id", ""))
+
+
+def render_job_form(title, job=None):
+    defaults = job or {}
+    st.subheader(title)
+
+    frequency_value = str(defaults.get("frequency") or "")
+
+    with st.container(key="card_narrow"):
+        with st.form(f"form-{title}", border=False):
+            name = st.text_input(
+                "Name",
+                value=defaults.get("name", ""),
+                disabled=bool(job),
+            )
+            description = st.text_area(
+                "Description",
+                value=defaults.get("description", ""),
+            )
+            command = st.text_area(
+                "Command",
+                value=defaults.get("command", ""),
+                height=140,
+            )
+            require_output = st.text_area(
+                "Require output",
+                value=defaults.get("require_output", ""),
+                height=100,
+            )
+            required_software = st.text_input(
+                "Required software",
+                value=defaults.get("required_software", ""),
+            )
+
+            frequency_options = [item["value"] for item in _job_frequency_options()]
+            frequency = st.selectbox(
+                "Frequency",
+                options=frequency_options,
+                index=frequency_options.index(frequency_value)
+                if frequency_value in frequency_options
+                else 0,
+                format_func=_job_frequency_label,
+            )
+
+            locked = st.text_input(
+                "Locked",
+                value=defaults.get("locked", ""),
+            )
+            role = st.text_input(
+                "Role",
+                value=defaults.get("role", ""),
+            )
+            job_type = st.text_input(
+                "Type",
+                value=defaults.get("type", ""),
+            )
+            vbuser_id = st.text_input(
+                "VB user id",
+                value=defaults.get("vbuser_id", ""),
+            )
+
+            save = st.form_submit_button("Save", use_container_width=True)
+
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.jobs_view = "list"
+            st.rerun()
+
+    if not save:
+        return
+
+    if not name.strip():
+        st.error("Job name is required")
+        return
+
+    if not command.strip():
+        st.error("Command is required")
+        return
+
+    payload = {
+        "name": name.strip(),
+        "description": description,
+        "command": command,
+        "require_output": require_output,
+        "required_software": required_software,
+        "frequency": frequency or None,
+        "locked": locked,
+        "role": role,
+        "type": job_type,
+        "vbuser_id": vbuser_id,
+    }
+
+    try:
+        if job:
+            payload.pop("name", None)
+            payload.pop("vbuser_id", None)
+            with st.spinner("Updating job..."):
+                updated = api_request("PATCH", f"/jobs/{job.get('name','')}", payload)
+            st.session_state.selected_job = (updated or {}).get("name", job.get("name", ""))
+            st.session_state.jobs_view = "detail"
+            st.toast("Job updated")
+        else:
+            with st.spinner("Creating job..."):
+                api_request("POST", "/jobs", payload)
+            st.session_state.jobs_view = "list"
+            st.toast("Job created")
+        st.rerun()
+    except RuntimeError as exc:
+        st.error(str(exc))
+
+
+def render_job_list():
+    st.title("Jobs")
+
+    _, add_col = st.columns([7, 2])
+    if add_col.button("Add job", use_container_width=True):
+        st.session_state.jobs_view = "add"
+        st.session_state.selected_job = None
+        st.rerun()
+
+    try:
+        with st.spinner("Loading jobs..."):
+            jobs = fetch_jobs()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    if not jobs:
+        st.info("No jobs found")
+        return
+
+    if pd is not None:
+        rows = []
+        for job in jobs:
+            frequency_value = str(job.get("frequency") or "")
+            rows.append(
+                {
+                    "Name": job.get("name", ""),
+                    "Description": job.get("description", ""),
+                    "Frequency": _job_frequency_label(frequency_value),
+                    "Role": job.get("role", ""),
+                    "Type": job.get("type", ""),
+                    "Locked": job.get("locked", ""),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+
+        event = st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+        )
+
+        selected_idx = None
+        if event and getattr(event, "selection", None):
+            rows_sel = event.selection.get("rows", [])
+            if rows_sel:
+                selected_idx = rows_sel[0]
+
+        with st.container(key="card"):
+            st.markdown("#### Actions")
+            if selected_idx is None:
+                st.caption("Select a job in the table to enable actions.")
+                return
+
+            selected_name = str(df.iloc[selected_idx]["Name"])
+            st.write(f"Selected: **{selected_name}**")
+
+            a1, a2, a3 = st.columns(3)
+            if a1.button("Open", use_container_width=True):
+                st.session_state.selected_job = selected_name
+                st.session_state.jobs_view = "detail"
+                st.rerun()
+            if a2.button("Edit", use_container_width=True):
+                st.session_state.selected_job = selected_name
+                st.session_state.jobs_view = "edit"
+                st.rerun()
+            if a3.button("Delete", use_container_width=True):
+                confirm_delete_job(selected_name)
+
+    else:
+        for job in jobs:
+            c1, c2, c3 = st.columns([3, 5, 2])
+            c1.write(job.get("name", ""))
+            c2.write(job.get("description", ""))
+            if c3.button("Open", key=f"open-{job.get('name','')}"):
+                st.session_state.selected_job = job.get("name")
+                st.session_state.jobs_view = "detail"
+                st.rerun()
+
+
+def render_jobs():
+    view = st.session_state.jobs_view
+
+    if view == "detail":
+        render_job_detail()
+        return
+    if view == "add":
+        render_job_form("Add job")
+        return
+    if view == "edit":
+        name = st.session_state.selected_job
+        if not name:
+            st.session_state.jobs_view = "list"
+            st.rerun()
+        try:
+            job = fetch_job(name)
+        except RuntimeError as exc:
+            st.error(str(exc))
+            return
+        render_job_form("Edit job", job=job)
+        return
+
+    render_job_list()
+
 
 # -----------------------------
 # Placeholders
@@ -1293,7 +1614,7 @@ def render_app():
         elif selection == "UDPU":
             render_udpu()
         elif selection == "Jobs":
-            render_placeholder("Jobs")
+            render_jobs()
 
 
 ensure_state()
