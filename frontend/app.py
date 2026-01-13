@@ -1159,26 +1159,8 @@ def render_udpu_list():
 
     top_left, top_right = st.columns([6, 2])
 
-    try:
-        locations = fetch_udpu_locations()
-    except RuntimeError as exc:
-        st.error(str(exc))
-        return
-
     with top_left:
-        if locations:
-            location_options = sorted([str(loc) for loc in locations if loc is not None])
-            if st.session_state.udpu_location not in location_options:
-                st.session_state.udpu_location = location_options[0] if location_options else ""
-            selected_location = st.selectbox(
-                "Location",
-                options=location_options,
-                index=location_options.index(st.session_state.udpu_location)
-                if st.session_state.udpu_location in location_options
-                else 0,
-            )
-        else:
-            selected_location = st.text_input("Location", value=st.session_state.udpu_location)
+        selected_location = st.text_input("Location", value=st.session_state.udpu_location)
 
         if selected_location != st.session_state.udpu_location:
             st.session_state.udpu_location = selected_location
