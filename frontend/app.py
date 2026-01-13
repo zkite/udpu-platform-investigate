@@ -237,6 +237,24 @@ def fetch_vbce(name):
     return api_request("GET", f"/vbce/{name}")
 
 
+def fetch_udpu_locations():
+    locations = api_request("GET", "/udpu/locations")
+    if isinstance(locations, list):
+        return locations
+    return []
+
+
+def fetch_udpu_list_by_location(location_id: str):
+    udpus = api_request("GET", f"/{location_id}/udpu_list")
+    if isinstance(udpus, list):
+        return udpus
+    return []
+
+
+def fetch_udpu(subscriber_uid: str):
+    return api_request("GET", f"/subscriber/{subscriber_uid}/udpu")
+
+
 # -----------------------------
 # State
 # -----------------------------
@@ -252,6 +270,9 @@ def ensure_state():
     st.session_state.setdefault("selected_role", None)
     st.session_state.setdefault("vbce_view", "list")
     st.session_state.setdefault("selected_vbce", None)
+    st.session_state.setdefault("udpu_view", "list")
+    st.session_state.setdefault("selected_udpu", None)
+    st.session_state.setdefault("udpu_location", "")
 
 
 def do_logout():
@@ -261,6 +282,9 @@ def do_logout():
     st.session_state.selected_role = None
     st.session_state.vbce_view = "list"
     st.session_state.selected_vbce = None
+    st.session_state.udpu_view = "list"
+    st.session_state.selected_udpu = None
+    st.session_state.udpu_location = ""
 
     try:
         if "auth" in st.query_params:
@@ -346,6 +370,28 @@ def confirm_delete_vbce(vbce_name):
                 st.toast("VBCE deleted")
                 st.session_state.vbce_view = "list"
                 st.session_state.selected_vbce = None
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+
+@st.dialog("Delete UDPU?")
+def confirm_delete_udpu(subscriber_uid: str):
+    st.write(f"UDPU: **{subscriber_uid}**")
+    st.warning("This action cannot be undone.")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Delete", type="primary", use_container_width=True):
+            try:
+                with st.spinner("Deleting UDPU..."):
+                    api_request("DELETE", f"/subscriber/{subscriber_uid}/udpu")
+                st.toast("UDPU deleted")
+                st.session_state.udpu_view = "list"
+                st.session_state.selected_udpu = None
                 st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
@@ -914,6 +960,296 @@ def render_vbce():
 
 
 # -----------------------------
+# UDPU helpers
+# -----------------------------
+def _udpu_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return False
+
+
+def render_udpu_detail():
+    subscriber_uid = st.session_state.selected_udpu
+    if not subscriber_uid:
+        st.session_state.udpu_view = "list"
+        st.rerun()
+
+    top = st.columns([1, 6, 2, 2])
+    if top[0].button("← Back", use_container_width=True):
+        st.session_state.udpu_view = "list"
+        st.rerun()
+    if top[2].button("Edit", use_container_width=True):
+        st.session_state.udpu_view = "edit"
+        st.rerun()
+    if top[3].button("Delete", use_container_width=True):
+        confirm_delete_udpu(subscriber_uid)
+
+    try:
+        with st.spinner("Loading UDPU..."):
+            udpu = fetch_udpu(subscriber_uid)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    st.subheader(udpu.get("subscriber_uid", ""))
+    st.write(f"Location: **{udpu.get('location', '') or '-'}**")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Role", udpu.get("role", "") or "-")
+    c2.metric("Hostname", udpu.get("hostname", "") or "-")
+    c3.metric("MAC address", udpu.get("mac_address", "") or "-")
+    c4.metric("Wireguard", "Enabled" if _udpu_bool(udpu.get("wg_server_public_key")) else "Disabled")
+
+    with st.container(key="section"):
+        st.markdown("#### Provisioning")
+        left, right = st.columns(2)
+        with left:
+            st.write(f"Upstream QoS: **{udpu.get('upstream_qos', '') or '-'}**")
+            st.write(f"Downstream QoS: **{udpu.get('downstream_qos', '') or '-'}**")
+        with right:
+            st.write(f"PPPoE username: **{udpu.get('pppoe_username', '') or '-'}**")
+            st.write(f"PPPoE password: **{udpu.get('pppoe_password', '') or '-'}**")
+
+    with st.container(key="section"):
+        st.markdown("#### Wireguard")
+        left, right = st.columns(2)
+        with left:
+            st.write(f"Client IP: **{udpu.get('wg_client_ip', '') or '-'}**")
+            st.write(f"Server IP: **{udpu.get('wg_server_ip', '') or '-'}**")
+            st.write(f"Server port: **{udpu.get('wg_server_port', '') or '-'}**")
+        with right:
+            st.write(f"Allowed IPs: **{udpu.get('wg_allowed_ips', '') or '-'}**")
+            st.write(f"Routes: **{udpu.get('wg_routes', '') or '-'}**")
+            st.write(f"Endpoint: **{udpu.get('endpoint', '') or '-'}**")
+
+
+def render_udpu_form(title: str, udpu=None):
+    defaults = udpu or {}
+    st.subheader(title)
+
+    roles = []
+    try:
+        roles = fetch_roles()
+    except RuntimeError:
+        roles = []
+
+    role_options = [r.get("name", "") for r in roles if r.get("name")]
+    if defaults.get("role") and defaults.get("role") not in role_options:
+        role_options.append(defaults.get("role"))
+
+    with st.container(key="card_narrow"):
+        with st.form(f"form-{title}", border=False):
+            if udpu:
+                st.text_input("Subscriber UID", value=defaults.get("subscriber_uid", ""), disabled=True)
+
+            location = st.text_input("Location", value=defaults.get("location", ""))
+
+            if role_options:
+                role = st.selectbox(
+                    "Role",
+                    options=role_options,
+                    index=role_options.index(defaults.get("role")) if defaults.get("role") in role_options else 0,
+                )
+            else:
+                role = st.text_input("Role", value=defaults.get("role", ""))
+
+            mac_address = st.text_input("MAC address", value=defaults.get("mac_address", ""))
+            upstream_qos = st.text_input("Upstream QoS", value=defaults.get("upstream_qos", ""))
+            downstream_qos = st.text_input("Downstream QoS", value=defaults.get("downstream_qos", ""))
+
+            if not udpu:
+                hostname = st.text_input("Hostname", value=defaults.get("hostname", ""))
+            else:
+                hostname = defaults.get("hostname", "")
+
+            save = st.form_submit_button("Save", use_container_width=True)
+
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.udpu_view = "list"
+            st.rerun()
+
+    if not save:
+        return
+
+    if not location.strip():
+        st.error("Location is required")
+        return
+
+    if not role.strip():
+        st.error("Role is required")
+        return
+
+    payload = {
+        "location": location.strip(),
+        "role": role.strip(),
+        "upstream_qos": upstream_qos.strip(),
+        "downstream_qos": downstream_qos.strip(),
+    }
+
+    if mac_address.strip():
+        payload["mac_address"] = mac_address.strip()
+
+    if not udpu and hostname.strip():
+        payload["hostname"] = hostname.strip()
+
+    try:
+        if udpu:
+            with st.spinner("Updating UDPU..."):
+                updated = api_request("PUT", f"/subscriber/{udpu.get('subscriber_uid','')}/udpu", payload)
+            st.session_state.selected_udpu = (updated or {}).get("subscriber_uid", udpu.get("subscriber_uid"))
+            st.session_state.udpu_view = "detail"
+            st.toast("UDPU updated")
+        else:
+            with st.spinner("Creating UDPU..."):
+                created = api_request("POST", "/udpu", payload)
+            st.session_state.selected_udpu = (created or {}).get("subscriber_uid")
+            st.session_state.udpu_view = "detail"
+            st.toast("UDPU created")
+        st.rerun()
+    except RuntimeError as exc:
+        st.error(str(exc))
+
+
+def render_udpu_list():
+    st.title("UDPU")
+
+    top_left, top_right = st.columns([6, 2])
+
+    try:
+        locations = fetch_udpu_locations()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    with top_left:
+        if locations:
+            location_options = sorted([str(loc) for loc in locations if loc is not None])
+            if st.session_state.udpu_location not in location_options:
+                st.session_state.udpu_location = location_options[0] if location_options else ""
+            selected_location = st.selectbox(
+                "Location",
+                options=location_options,
+                index=location_options.index(st.session_state.udpu_location)
+                if st.session_state.udpu_location in location_options
+                else 0,
+            )
+        else:
+            selected_location = st.text_input("Location", value=st.session_state.udpu_location)
+
+        if selected_location != st.session_state.udpu_location:
+            st.session_state.udpu_location = selected_location
+            st.rerun()
+
+    if top_right.button("Add UDPU", use_container_width=True):
+        st.session_state.udpu_view = "add"
+        st.session_state.selected_udpu = None
+        st.rerun()
+
+    if not st.session_state.udpu_location:
+        st.info("Select a location to view UDPU devices.")
+        return
+
+    try:
+        with st.spinner("Loading UDPU..."):
+            udpus = fetch_udpu_list_by_location(st.session_state.udpu_location)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    if not udpus:
+        st.info("No UDPU devices found")
+        return
+
+    if pd is not None:
+        rows = []
+        for u in udpus:
+            rows.append(
+                {
+                    "Subscriber UID": u.get("subscriber_uid", ""),
+                    "Hostname": u.get("hostname", ""),
+                    "MAC address": u.get("mac_address", ""),
+                    "Role": u.get("role", ""),
+                    "Upstream QoS": u.get("upstream_qos", ""),
+                    "Downstream QoS": u.get("downstream_qos", ""),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+
+        event = st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+        )
+
+        selected_idx = None
+        if event and getattr(event, "selection", None):
+            rows_sel = event.selection.get("rows", [])
+            if rows_sel:
+                selected_idx = rows_sel[0]
+
+        with st.container(key="card"):
+            st.markdown("#### Actions")
+            if selected_idx is None:
+                st.caption("Select a UDPU in the table to enable actions.")
+                return
+
+            selected_uid = str(df.iloc[selected_idx]["Subscriber UID"])
+            st.write(f"Selected: **{selected_uid}**")
+
+            a1, a2, a3 = st.columns(3)
+            if a1.button("Open", use_container_width=True):
+                st.session_state.selected_udpu = selected_uid
+                st.session_state.udpu_view = "detail"
+                st.rerun()
+            if a2.button("Edit", use_container_width=True):
+                st.session_state.selected_udpu = selected_uid
+                st.session_state.udpu_view = "edit"
+                st.rerun()
+            if a3.button("Delete", use_container_width=True):
+                confirm_delete_udpu(selected_uid)
+
+    else:
+        for u in udpus:
+            c1, c2, c3 = st.columns([3, 5, 2])
+            c1.write(u.get("subscriber_uid", ""))
+            c2.write(u.get("hostname", ""))
+            if c3.button("Open", key=f"open-{u.get('subscriber_uid','')}"):
+                st.session_state.selected_udpu = u.get("subscriber_uid")
+                st.session_state.udpu_view = "detail"
+                st.rerun()
+
+
+def render_udpu():
+    view = st.session_state.udpu_view
+
+    if view == "detail":
+        render_udpu_detail()
+        return
+    if view == "add":
+        render_udpu_form("Add UDPU")
+        return
+    if view == "edit":
+        subscriber_uid = st.session_state.selected_udpu
+        if not subscriber_uid:
+            st.session_state.udpu_view = "list"
+            st.rerun()
+        try:
+            udpu = fetch_udpu(subscriber_uid)
+        except RuntimeError as exc:
+            st.error(str(exc))
+            return
+        render_udpu_form("Edit UDPU", udpu=udpu)
+        return
+
+    render_udpu_list()
+
+
+# -----------------------------
 # Placeholders
 # -----------------------------
 def render_placeholder(title: str):
@@ -955,7 +1291,7 @@ def render_app():
         elif selection == "VBCE":
             render_vbce()
         elif selection == "UDPU":
-            render_placeholder("UDPU")
+            render_udpu()
         elif selection == "Jobs":
             render_placeholder("Jobs")
 
