@@ -233,6 +233,13 @@ def fetch_vbces():
     return []
 
 
+def fetch_vbce_locations():
+    locations = api_request("GET", "/vbce/locations")
+    if isinstance(locations, list):
+        return locations
+    return []
+
+
 def fetch_vbce(name):
     return api_request("GET", f"/vbce/{name}")
 
@@ -1359,6 +1366,12 @@ def render_job_form(title, job=None):
     st.subheader(title)
 
     frequency_value = str(defaults.get("frequency") or "")
+    vbce_locations = []
+    if not job:
+        try:
+            vbce_locations = fetch_vbce_locations()
+        except RuntimeError:
+            vbce_locations = []
 
     with st.container(key="card_narrow"):
         with st.form(f"form-{title}", border=False):
@@ -1385,6 +1398,20 @@ def render_job_form(title, job=None):
                 "Required software",
                 value=defaults.get("required_software", ""),
             )
+            location_id = ""
+            if not job:
+                if vbce_locations:
+                    location_options = sorted([str(loc) for loc in vbce_locations if loc is not None])
+                    location_id = st.selectbox(
+                        "Location",
+                        options=location_options,
+                        index=0,
+                    )
+                else:
+                    location_id = st.text_input(
+                        "Location",
+                        value=defaults.get("location_id", ""),
+                    )
 
             frequency_options = [item["value"] for item in _job_frequency_options()]
             frequency = st.selectbox(
@@ -1442,6 +1469,8 @@ def render_job_form(title, job=None):
         "type": job_type,
         "vbuser_id": vbuser_id,
     }
+    if not job and location_id.strip():
+        payload["location_id"] = location_id.strip()
 
     try:
         if job:
