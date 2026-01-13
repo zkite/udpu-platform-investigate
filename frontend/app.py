@@ -226,6 +226,17 @@ def fetch_role(name: str):
     return api_request("GET", f"/roles/{name}")
 
 
+def fetch_vbces():
+    vbces = api_request("GET", "/vbces")
+    if isinstance(vbces, list):
+        return vbces
+    return []
+
+
+def fetch_vbce(name):
+    return api_request("GET", f"/vbce/{name}")
+
+
 # -----------------------------
 # State
 # -----------------------------
@@ -239,6 +250,8 @@ def ensure_state():
     st.session_state.setdefault("active_tab", "Roles")
     st.session_state.setdefault("roles_view", "list")  # list | detail | add | edit
     st.session_state.setdefault("selected_role", None)
+    st.session_state.setdefault("vbce_view", "list")
+    st.session_state.setdefault("selected_vbce", None)
 
 
 def do_logout():
@@ -246,6 +259,8 @@ def do_logout():
     st.session_state.active_tab = "Roles"
     st.session_state.roles_view = "list"
     st.session_state.selected_role = None
+    st.session_state.vbce_view = "list"
+    st.session_state.selected_vbce = None
 
     try:
         if "auth" in st.query_params:
@@ -309,6 +324,28 @@ def confirm_clone_role(role_name: str):
                 st.toast("Role cloned")
                 st.session_state.selected_role = new_name.strip()
                 st.session_state.roles_view = "detail"
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+
+@st.dialog("Delete VBCE?")
+def confirm_delete_vbce(vbce_name):
+    st.write(f"VBCE: **{vbce_name}**")
+    st.warning("This action cannot be undone.")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Delete", type="primary", use_container_width=True):
+            try:
+                with st.spinner("Deleting VBCE..."):
+                    api_request("DELETE", f"/vbce/{vbce_name}")
+                st.toast("VBCE deleted")
+                st.session_state.vbce_view = "list"
+                st.session_state.selected_vbce = None
                 st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
@@ -644,6 +681,238 @@ def render_roles():
     render_role_list()
 
 
+def _vbce_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return False
+
+
+def render_vbce_detail():
+    name = st.session_state.selected_vbce
+    if not name:
+        st.session_state.vbce_view = "list"
+        st.rerun()
+
+    top = st.columns([1, 6, 2, 2])
+    if top[0].button("← Back", use_container_width=True):
+        st.session_state.vbce_view = "list"
+        st.rerun()
+    if top[2].button("Edit", use_container_width=True):
+        st.session_state.vbce_view = "edit"
+        st.rerun()
+    if top[3].button("Delete", use_container_width=True):
+        confirm_delete_vbce(name)
+
+    try:
+        with st.spinner("Loading VBCE..."):
+            vbce = fetch_vbce(name)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    st.subheader(vbce.get("name", ""))
+    st.write(vbce.get("description", ""))
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Current users", str(vbce.get("current_users", 0)))
+    c2.metric("Max users", str(vbce.get("max_users", 0)))
+    c3.metric("Available users", str(vbce.get("available_users", 0)))
+    c4.metric("Force local", "Enabled" if _vbce_bool(vbce.get("force_local")) else "Disabled")
+
+    c5, c6, c7, c8 = st.columns(4)
+    c5.metric("Empty", "Yes" if _vbce_bool(vbce.get("is_empty")) else "No")
+    c6.metric("Full", "Yes" if _vbce_bool(vbce.get("is_full")) else "No")
+    c7.metric("IP address", vbce.get("ip_address", "") or "-")
+    c8.metric("TCP port", vbce.get("tcp_port", "") or "-")
+
+    with st.container(key="section"):
+        st.markdown("#### Details")
+        left, right = st.columns(2)
+        with left:
+            st.write(f"Location ID: **{vbce.get('location_id', '') or '-'}**")
+            st.write(f"LQ min rate: **{vbce.get('lq_min_rate', 0)}**")
+            st.write(f"LQ max rate: **{vbce.get('lq_max_rate', 0)}**")
+        with right:
+            st.write(f"LQ mean rate: **{vbce.get('lq_mean_rate', 0)}**")
+            st.write(f"Seed idx used: **{vbce.get('seed_idx_used', '') or '-'}**")
+
+
+def render_vbce_form(title, vbce=None):
+    defaults = vbce or {}
+    st.subheader(title)
+
+    with st.container(key="card_narrow"):
+        with st.form(f"form-{title}", border=False):
+            name = st.text_input("Name", value=defaults.get("name", ""), disabled=bool(vbce))
+            description = st.text_area("Description", value=defaults.get("description", ""), disabled=bool(vbce))
+            location_id = st.text_input("Location ID", value=defaults.get("location_id", ""))
+            ip_address = st.text_input("IP address", value=defaults.get("ip_address", ""))
+            tcp_port = st.text_input("TCP port", value=defaults.get("tcp_port", ""))
+            max_users = st.number_input(
+                "Max users",
+                min_value=0,
+                step=1,
+                value=int(defaults.get("max_users", 510) or 0),
+            )
+            force_local = st.checkbox(
+                "Force local",
+                value=_vbce_bool(defaults.get("force_local")),
+            )
+            save = st.form_submit_button("Save", use_container_width=True)
+
+        if st.button("Cancel", use_container_width=True):
+            st.session_state.vbce_view = "list"
+            st.rerun()
+
+    if not save:
+        return
+
+    if not name.strip():
+        st.error("VBCE name is required")
+        return
+
+    payload = {
+        "max_users": int(max_users),
+        "ip_address": ip_address.strip(),
+        "tcp_port": tcp_port.strip(),
+        "location_id": location_id.strip(),
+        "force_local": "true" if force_local else "false",
+    }
+
+    try:
+        if vbce:
+            with st.spinner("Updating VBCE..."):
+                updated = api_request("PATCH", f"/vbce/{vbce.get('name','')}", payload)
+            st.session_state.selected_vbce = (updated or {}).get("name", vbce.get("name"))
+            st.session_state.vbce_view = "detail"
+            st.toast("VBCE updated")
+        else:
+            payload.update(
+                {
+                    "name": name.strip(),
+                    "description": description,
+                }
+            )
+            with st.spinner("Creating VBCE..."):
+                api_request("POST", "/vbce", payload)
+            st.session_state.vbce_view = "list"
+            st.toast("VBCE created")
+        st.rerun()
+    except RuntimeError as exc:
+        st.error(str(exc))
+
+
+def render_vbce_list():
+    st.title("VBCE")
+
+    _, add_col = st.columns([7, 2])
+    if add_col.button("Add VBCE", use_container_width=True):
+        st.session_state.vbce_view = "add"
+        st.session_state.selected_vbce = None
+        st.rerun()
+
+    try:
+        with st.spinner("Loading VBCE..."):
+            vbces = fetch_vbces()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    if not vbces:
+        st.info("No VBCE found")
+        return
+
+    if pd is not None:
+        rows = []
+        for v in vbces:
+            rows.append(
+                {
+                    "Name": v.get("name", ""),
+                    "Description": v.get("description", ""),
+                    "Location ID": v.get("location_id", ""),
+                    "IP address": v.get("ip_address", ""),
+                    "TCP port": v.get("tcp_port", ""),
+                    "Current users": v.get("current_users", 0),
+                    "Max users": v.get("max_users", 0),
+                    "Force local": _vbce_bool(v.get("force_local")),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+
+        event = st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+        )
+
+        selected_idx = None
+        if event and getattr(event, "selection", None):
+            rows_sel = event.selection.get("rows", [])
+            if rows_sel:
+                selected_idx = rows_sel[0]
+
+        with st.container(key="card"):
+            st.markdown("#### Actions")
+            if selected_idx is None:
+                st.caption("Select a VBCE in the table to enable actions.")
+                return
+
+            selected_name = str(df.iloc[selected_idx]["Name"])
+            st.write(f"Selected: **{selected_name}**")
+
+            a1, a2, a3 = st.columns(3)
+            if a1.button("Open", use_container_width=True):
+                st.session_state.selected_vbce = selected_name
+                st.session_state.vbce_view = "detail"
+                st.rerun()
+            if a2.button("Edit", use_container_width=True):
+                st.session_state.selected_vbce = selected_name
+                st.session_state.vbce_view = "edit"
+                st.rerun()
+            if a3.button("Delete", use_container_width=True):
+                confirm_delete_vbce(selected_name)
+
+    else:
+        for v in vbces:
+            c1, c2, c3 = st.columns([3, 5, 2])
+            c1.write(v.get("name", ""))
+            c2.write(v.get("description", ""))
+            if c3.button("Open", key=f"open-{v.get('name','')}"):
+                st.session_state.selected_vbce = v.get("name")
+                st.session_state.vbce_view = "detail"
+                st.rerun()
+
+
+def render_vbce():
+    view = st.session_state.vbce_view
+
+    if view == "detail":
+        render_vbce_detail()
+        return
+    if view == "add":
+        render_vbce_form("Add VBCE")
+        return
+    if view == "edit":
+        name = st.session_state.selected_vbce
+        if not name:
+            st.session_state.vbce_view = "list"
+            st.rerun()
+        try:
+            vbce = fetch_vbce(name)
+        except RuntimeError as exc:
+            st.error(str(exc))
+            return
+        render_vbce_form("Edit VBCE", vbce=vbce)
+        return
+
+    render_vbce_list()
+
+
 # -----------------------------
 # Placeholders
 # -----------------------------
@@ -684,7 +953,7 @@ def render_app():
         if selection == "Roles":
             render_roles()
         elif selection == "VBCE":
-            render_placeholder("VBCE")
+            render_vbce()
         elif selection == "UDPU":
             render_placeholder("UDPU")
         elif selection == "Jobs":
