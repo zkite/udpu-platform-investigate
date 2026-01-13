@@ -6,7 +6,7 @@ from fastapi_utils.inferring_router import InferringRouter
 from config import get_app_settings
 from services.redis.exceptions import RedisResponseError
 
-from .dependencies import create_vbce, delete_vbce, get_vbce, patch_vbce, get_vbce_list, get_vbce_by_location_id
+from .dependencies import create_vbce, delete_vbce, get_vbce, patch_vbce, get_vbce_list, get_vbce_by_location_id, get_vbce_location_list
 from .schemas import Vbce, VbceUpdate
 from .constants import VBCE_ENTITY
 
@@ -108,3 +108,9 @@ class VbceListResource:
     async def get(self, request: Request):
         redis = request.app.state.redis
         return await get_vbce_list(redis)
+
+    @router.get("/vbce/locations")
+    async def get_locations(self, request: Request):
+        redis = request.app.state.redis
+        locations = await get_vbce_location_list(redis)
+        return list(locations)

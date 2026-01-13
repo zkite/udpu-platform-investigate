@@ -1,4 +1,3 @@
-from asyncio import gather
 from fastapi import Request, APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic
@@ -7,7 +6,7 @@ from services.logging.logger import log as logger
 from http import HTTPStatus as status
 
 from config import get_app_settings
-from domain.api.roles.dependencies import get_udpu_role
+from domain.api.roles.dependencies import get_udpu_role, get_primary_ghn_interfaces
 from domain.api.vbuser.dependencies import location_exist
 
 from .constants import UDPU_ENTITY, CONTEXT_KEY_PREFIX, LOCATION_PREFIX, STATUS_PREFIX
@@ -24,8 +23,6 @@ from .dependencies import (
     is_unique_mac_address,
     is_valid_hostname,
     is_valid_mac_address,
-    map_mac_address_to_subscriber,
-    update_udpu_list,
     generate_client_ip,
     get_public_key,
     get_udpu_status,
@@ -101,18 +98,10 @@ class UdpuActivation:
 
         vbce = await get_vbce_by_location_id(redis, udpu.location)
 
-        try:
-            ghn_interface = role["interfaces"]["ghn_ports"]["port_1"]["ghn_interface"]
-            lcmp_interface = role["interfaces"]["ghn_ports"]["port_1"]["lcmp_interface"]
-        except Exception:
-            try:
-                ghn_interface = role["interfaces"]["ghn_ports"][0]["ghn_interface"]
-                lcmp_interface = role["interfaces"]["ghn_ports"][1]["lcmp_interface"]
-            except Exception:
-                ghn_interface = ""
-                lcmp_interface = ""
+        ghn_interface, lcmp_interface = get_primary_ghn_interfaces(role)
 
         try:
+            created_vbuser = None
             if vbce:
                 max_users = int(vbce["max_users"])
                 current_users = int(vbce["current_users"])
@@ -128,7 +117,7 @@ class UdpuActivation:
                     ghn_profile=GHN_PROFILE,
                     conf_ghn_profile=GHN_PROFILE,
                 )
-                await create_vbuser(redis, vbuser)
+                created_vbuser = await create_vbuser(redis, vbuser)
             else:
                 empty_vbce = await find_empty_vbce(redis)
                 if empty_vbce:
@@ -146,23 +135,25 @@ class UdpuActivation:
                         ghn_profile=GHN_PROFILE,
                         conf_ghn_profile=GHN_PROFILE,
                     )
-                    await create_vbuser(redis, vbuser)
+                    created_vbuser = await create_vbuser(redis, vbuser)
                 else:
                     return JSONResponse(status_code=400,
                                         content={"message": f"No available vbce found for location {udpu.location}"})
 
-            await gather(
-                create_udpu(redis, udpu),
-                update_udpu_list(redis, f"{UDPU_ENTITY}:mac_address_list", udpu.mac_address),
-                update_udpu_list(redis, f"{UDPU_ENTITY}:hostname_list", udpu.hostname),
-                update_udpu_list(redis, f"{UDPU_ENTITY}:location_list", udpu.location),
-                update_udpu_list(redis, f"{LOCATION_PREFIX}:{udpu.location}", udpu.subscriber_uid),
-                map_mac_address_to_subscriber(redis, udpu.mac_address_key, udpu.subscriber_key),
-            )
+            pipe = redis.pipeline(transaction=True)
+            pipe.hset(udpu.subscriber_key, mapping=udpu.dict(exclude_none=True))
+            pipe.sadd(f"{UDPU_ENTITY}:mac_address_list", udpu.mac_address)
+            pipe.sadd(f"{UDPU_ENTITY}:hostname_list", udpu.hostname)
+            pipe.sadd(f"{UDPU_ENTITY}:location_list", udpu.location)
+            pipe.sadd(f"{LOCATION_PREFIX}:{udpu.location}", udpu.subscriber_uid)
+            pipe.set(udpu.mac_address_key, udpu.subscriber_key)
+            await pipe.execute()
 
             udpu_obj = await get_udpu(redis, udpu.subscriber_key)
             return JSONResponse(status_code=200, content=udpu_obj)
         except RedisResponseError as e:
+            if created_vbuser:
+                await delete_vbuser(redis, created_vbuser["vb_uid"], created_vbuser["location_id"], created_vbuser["seed_idx"])
             return JSONResponse(status_code=500, content={"message": e.message})
 
     @router.get("/udpu/locations")
@@ -348,24 +339,12 @@ class UdpuActivation:
                     content={"message": f"No available vbce found for location {update_request.location}"}
                 )
 
+        created_vbuser = None
         try:
-            try:
-                ghn_interface = role["interfaces"]["ghn_ports"]["port_1"]["ghn_interface"]
-                lcmp_interface = role["interfaces"]["ghn_ports"]["port_1"]["lcmp_interface"]
-            except Exception:
-                try:
-                    ghn_interface = role["interfaces"]["ghn_ports"][0]["ghn_interface"]
-                    lcmp_interface = role["interfaces"]["ghn_ports"][1]["lcmp_interface"]
-                except Exception:
-                    ghn_interface = ""
-                    lcmp_interface = ""
-
-            updated_udpu = await update_udpu(redis, update_request, udpu_obj)
+            ghn_interface, lcmp_interface = get_primary_ghn_interfaces(role)
             old_vbuser = await get_vbuser_by_udpu(redis, udpu_obj["subscriber_uid"])
-            if old_vbuser:
-                await delete_vbuser(redis, old_vbuser["vb_uid"], old_vbuser["location_id"], old_vbuser["seed_idx"])
             vbuser = VBUser(
-                udpu=updated_udpu["subscriber_uid"],
+                udpu=udpu_obj["subscriber_uid"],
                 location_id=update_request.location,
                 ghn_interface=ghn_interface,
                 lcmp_interface=lcmp_interface,
@@ -373,8 +352,13 @@ class UdpuActivation:
                 ghn_profile=GHN_PROFILE,
                 conf_ghn_profile=GHN_PROFILE,
             )
-            await create_vbuser(redis, vbuser)
+            created_vbuser = await create_vbuser(redis, vbuser)
+            updated_udpu = await update_udpu(redis, update_request, udpu_obj)
+            if old_vbuser:
+                await delete_vbuser(redis, old_vbuser["vb_uid"], old_vbuser["location_id"], old_vbuser["seed_idx"])
         except RedisResponseError as e:
+            if created_vbuser:
+                await delete_vbuser(redis, created_vbuser["vb_uid"], created_vbuser["location_id"], created_vbuser["seed_idx"])
             return JSONResponse(status_code=500, content={"message": e.message})
 
         return JSONResponse(status_code=200, content=updated_udpu)
@@ -420,22 +404,12 @@ class UdpuActivation:
                 await update_vbce_location_list(redis, vbce_to_update.location_id)
             else:
                 return JSONResponse(status_code=400, content={"message": f"No available vbce found for location {update_request.location}"})
+        created_vbuser = None
         try:
-            updated_udpu = await update_udpu(redis, update_request, udpu_obj)
             old_vbuser = await get_vbuser_by_udpu(redis, udpu_obj["subscriber_uid"])
-            await delete_vbuser(redis, old_vbuser["vb_uid"], old_vbuser["location_id"], old_vbuser["seed_idx"])
-            try:
-                ghn_interface = role["interfaces"]["ghn_ports"]["port_1"]["ghn_interface"]
-                lcmp_interface = role["interfaces"]["port_1"]["lcmp_interface"]
-            except Exception:
-                try:
-                    ghn_interface = role["interfaces"]["ghn_ports"][0]["ghn_interface"]
-                    lcmp_interface = role["interfaces"]["ghn_ports"][1]["lcmp_interface"]
-                except Exception:
-                    ghn_interface = ""
-                    lcmp_interface = ""
+            ghn_interface, lcmp_interface = get_primary_ghn_interfaces(role)
             vbuser = VBUser(
-                udpu=updated_udpu["subscriber_uid"],
+                udpu=udpu_obj["subscriber_uid"],
                 location_id=update_request.location,
                 ghn_interface=ghn_interface,
                 lcmp_interface=lcmp_interface,
@@ -443,8 +417,13 @@ class UdpuActivation:
                 ghn_profile=GHN_PROFILE,
                 conf_ghn_profile=GHN_PROFILE,
             )
-            await create_vbuser(redis, vbuser)
+            created_vbuser = await create_vbuser(redis, vbuser)
+            updated_udpu = await update_udpu(redis, update_request, udpu_obj)
+            if old_vbuser:
+                await delete_vbuser(redis, old_vbuser["vb_uid"], old_vbuser["location_id"], old_vbuser["seed_idx"])
         except RedisResponseError as e:
+            if created_vbuser:
+                await delete_vbuser(redis, created_vbuser["vb_uid"], created_vbuser["location_id"], created_vbuser["seed_idx"])
             return JSONResponse(status_code=500, content={"message": e.message})
         return JSONResponse(status_code=200, content=updated_udpu)
 

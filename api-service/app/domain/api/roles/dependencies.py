@@ -9,17 +9,65 @@ from services.redis.exceptions import RedisResponseError
 from domain.api.exceptions import RecordNotFound
 from domain.api.roles.constants import ROLE_PREFIX
 from domain.api.roles.schemas import UdpuRole, UdpuRoleClone, UdpuRoleUpdate
+from domain.api.jobs.constants import JOB_PREFIX
+from domain.api.jobs.queues.constants import QUEUE_PREFIX
 from domain.api.northbound.constants import UDPU_ENTITY
+
+
+def _normalize_interfaces(interfaces: dict) -> dict:
+    if not interfaces:
+        return {"management_vlan": {}, "ghn_ports": []}
+
+    normalized = dict(interfaces)
+    ghn_ports = normalized.get("ghn_ports")
+    if isinstance(ghn_ports, dict):
+        ports_list = []
+        if "port_1" in ghn_ports:
+            ports_list.append(ghn_ports.get("port_1") or {})
+            if "port_2" in ghn_ports:
+                ports_list.append(ghn_ports.get("port_2") or {})
+        else:
+            ports_list.extend(ghn_ports.values())
+        normalized["ghn_ports"] = ports_list
+    elif isinstance(ghn_ports, list):
+        normalized["ghn_ports"] = ghn_ports
+    else:
+        normalized["ghn_ports"] = []
+    return normalized
+
+
+def get_primary_ghn_interfaces(role: dict) -> tuple[str, str]:
+    interfaces = _normalize_interfaces((role or {}).get("interfaces") or {})
+    ports = interfaces.get("ghn_ports") or []
+    if not ports:
+        return "", ""
+    port = ports[0] or {}
+    return port.get("ghn_interface", ""), port.get("lcmp_interface", "")
+
+
+async def _update_role_in_jobs(redis: Redis, old_name: str, new_name: str) -> None:
+    async for key in redis.scan_iter(f"{JOB_PREFIX}:*"):
+        data = await redis.hgetall(key)
+        if data and data.get("role") == old_name:
+            await redis.hset(key, mapping={"role": new_name})
+
+
+async def _update_role_in_queues(redis: Redis, old_name: str, new_name: str) -> None:
+    async for key in redis.scan_iter(f"{QUEUE_PREFIX}:*"):
+        data = await redis.hgetall(key)
+        if data and data.get("role") == old_name:
+            await redis.hset(key, mapping={"role": new_name})
 
 
 def _build_mapping(data: dict) -> dict[str, str]:
     # prepare flat mapping for redis.hset
+    interfaces = _normalize_interfaces(data["interfaces"])
     return {
         "name": data["name"],
         "description": data["description"],
         "wireguard_tunnel": json.dumps(data["wireguard_tunnel"]),
         "job_control": json.dumps(data["job_control"]),
-        "interfaces": json.dumps(data["interfaces"]),
+        "interfaces": json.dumps(interfaces),
     }
 
 
@@ -46,6 +94,8 @@ async def get_udpu_role(redis: Redis, name: str) -> dict | None:
                 result[field] = json.loads(val)
             else:
                 result[field] = val
+        if "interfaces" in result:
+            result["interfaces"] = _normalize_interfaces(result.get("interfaces") or {})
         return result
     except RedisError as e:
         logger.error(e)
@@ -84,7 +134,7 @@ async def update_role(redis: Redis, name: str, role_update: UdpuRoleUpdate) -> d
             new_key = f"{ROLE_PREFIX}:{update_data['name']}"
             await redis.hset(new_key, mapping=mapping)
 
-            # update related UDPU entities
+            # update related entities
             pattern = re.compile(r"[a-f0-9]{16}")
             async for udpu_key in redis.scan_iter(f"{UDPU_ENTITY}:*"):
                 _, uuid = udpu_key.split(":", 1)
@@ -93,6 +143,8 @@ async def update_role(redis: Redis, name: str, role_update: UdpuRoleUpdate) -> d
                     if udpu_data.get("role") == name:
                         udpu_data["role"] = update_data["name"]
                         await redis.hset(udpu_key, mapping=udpu_data)
+            await _update_role_in_jobs(redis, name, update_data["name"])
+            await _update_role_in_queues(redis, name, update_data["name"])
         else:
             await redis.hset(old_key, mapping=mapping)
 
