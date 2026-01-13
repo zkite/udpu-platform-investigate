@@ -22,7 +22,6 @@ from .constants import MAC_ADDRESS_KEY, PPPOE_ENTITY, UDPU_ENTITY, LOCATION_PREF
 from .exceptions import RedisResponseError
 from .schemas import Udpu, UdpuUpdate, UdpuStatus, UdpuStatusEnum
 from domain.api.roles.dependencies import get_udpu_role, get_primary_ghn_interfaces
-from domain.api.vbuser.dependencies import get_vbuser_by_udpu, update_vbuser_interfaces
 
 
 settings = get_app_settings()
@@ -169,6 +168,7 @@ async def bulk_update_udpu(redis: Redis, udpu_lst: List[dict], update_request) -
             role = await get_udpu_role(redis, update_request.role)
             if role:
                 ghn_interface, lcmp_interface = get_primary_ghn_interfaces(role)
+                from domain.api.vbuser.dependencies import get_vbuser_by_udpu, update_vbuser_interfaces
                 vbuser = await get_vbuser_by_udpu(redis, udpu["subscriber_uid"])
                 if vbuser:
                     await update_vbuser_interfaces(redis, vbuser, ghn_interface, lcmp_interface)

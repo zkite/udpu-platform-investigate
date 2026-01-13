@@ -4,7 +4,6 @@ from redis.asyncio.client import Redis
 from redis.exceptions import ReadOnlyError, ResponseError
 
 from services.redis.exceptions import RedisResponseError
-from domain.api.northbound.dependencies import get_udpu
 from domain.api.roles.dependencies import get_udpu_role, get_primary_ghn_interfaces
 from domain.api.vbce.dependencies import update_vbce, get_vbce
 from domain.api.vbce.constants import VBCE_ENTITY
@@ -149,6 +148,7 @@ async def get_seed_index(redis: Redis, location_id: str):
 
 async def get_detailed_vbuser(redis: Redis, vbuser: dict):
     # get udpu role by vbuser.udpu
+    from domain.api.northbound.dependencies import get_udpu
     udpu = await get_udpu(redis, vbuser["udpu"])
 
     # get role by role name
