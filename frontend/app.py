@@ -1002,7 +1002,7 @@ def render_udpu_detail():
     c3.metric("MAC address", udpu.get("mac_address", "") or "-")
     c4.metric("Wireguard", "Enabled" if _udpu_bool(udpu.get("wg_server_public_key")) else "Disabled")
 
-    with st.container(key="section"):
+    with st.container(key="section_provisioning"):
         st.markdown("#### Provisioning")
         left, right = st.columns(2)
         with left:
@@ -1012,7 +1012,7 @@ def render_udpu_detail():
             st.write(f"PPPoE username: **{udpu.get('pppoe_username', '') or '-'}**")
             st.write(f"PPPoE password: **{udpu.get('pppoe_password', '') or '-'}**")
 
-    with st.container(key="section"):
+    with st.container(key="section_wireguard"):
         st.markdown("#### Wireguard")
         left, right = st.columns(2)
         with left:
