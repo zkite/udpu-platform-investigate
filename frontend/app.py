@@ -1071,6 +1071,12 @@ def render_udpu_form(title: str, udpu=None):
     defaults = udpu or {}
     st.subheader(title)
 
+    locations = []
+    try:
+        locations = fetch_udpu_locations()
+    except RuntimeError:
+        locations = []
+
     roles = []
     try:
         roles = fetch_roles()
@@ -1081,12 +1087,25 @@ def render_udpu_form(title: str, udpu=None):
     if defaults.get("role") and defaults.get("role") not in role_options:
         role_options.append(defaults.get("role"))
 
+    location_options = [location.get("name", "") for location in locations if location.get("name")]
+    if defaults.get("location") and defaults.get("location") not in location_options:
+        location_options.append(defaults.get("location"))
+
     with st.container(key="card_narrow"):
         with st.form(f"form-{title}", border=False):
             if udpu:
                 st.text_input("Subscriber UID", value=defaults.get("subscriber_uid", ""), disabled=True)
 
-            location = st.text_input("Location", value=defaults.get("location", ""))
+            if not udpu and location_options:
+                location = st.selectbox(
+                    "Location",
+                    options=location_options,
+                    index=location_options.index(defaults.get("location"))
+                    if defaults.get("location") in location_options
+                    else 0,
+                )
+            else:
+                location = st.text_input("Location", value=defaults.get("location", ""))
 
             if role_options:
                 role = st.selectbox(
