@@ -261,6 +261,24 @@ def fetch_udpu_list_by_location(location_id: str):
 def fetch_udpu(subscriber_uid: str):
     return api_request("GET", f"/subscriber/{subscriber_uid}/udpu")
 
+def fetch_udpu_statuses():
+    statuses = api_request("GET", "/udpu/status")
+    if isinstance(statuses, list):
+        return statuses
+    return []
+
+
+def fetch_udpu_status(subscriber_uid):
+    return api_request("GET", f"/udpu/{subscriber_uid}/status")
+
+
+def fetch_unregistered_devices():
+    devices = api_request("GET", "/unregistered_devices")
+    if isinstance(devices, list):
+        return devices
+    return []
+
+
 def fetch_jobs():
     jobs = api_request("GET", "/jobs")
     if isinstance(jobs, list):
@@ -1066,6 +1084,23 @@ def render_udpu_detail():
             st.write(f"Routes: **{udpu.get('wg_routes', '') or '-'}**")
             st.write(f"Endpoint: **{udpu.get('endpoint', '') or '-'}**")
 
+    status_data = None
+    status_error = None
+    try:
+        status_data = fetch_udpu_status(subscriber_uid)
+    except RuntimeError as exc:
+        status_error = str(exc)
+
+    with st.container(key="section"):
+        st.markdown("#### Status")
+        if status_data:
+            st.write(f"State: **{status_data.get('state', '') or '-'}**")
+            st.write(f"Status: **{status_data.get('status', '') or '-'}**")
+        elif status_error:
+            st.caption(f"Status unavailable: {status_error}")
+        else:
+            st.caption("Status not found.")
+
 
 def render_udpu_form(title: str, udpu=None):
     defaults = udpu or {}
@@ -1273,6 +1308,38 @@ def render_udpu_list():
                 st.session_state.selected_udpu = u.get("subscriber_uid")
                 st.session_state.udpu_view = "detail"
                 st.rerun()
+
+    st.markdown("### Status overview")
+    try:
+        statuses = fetch_udpu_statuses()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        statuses = []
+
+    if statuses:
+        if pd is not None:
+            df_status = pd.DataFrame(statuses)
+            st.dataframe(df_status, use_container_width=True, hide_index=True)
+        else:
+            st.code(json.dumps(statuses, indent=2), language="json")
+    else:
+        st.info("No UDPU status data found")
+
+    st.markdown("### Unregistered devices")
+    try:
+        devices = fetch_unregistered_devices()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        devices = []
+
+    if devices:
+        if pd is not None:
+            df_devices = pd.DataFrame(devices)
+            st.dataframe(df_devices, use_container_width=True, hide_index=True)
+        else:
+            st.code(json.dumps(devices, indent=2), language="json")
+    else:
+        st.info("No unregistered devices found")
 
 
 def render_udpu():
