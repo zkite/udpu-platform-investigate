@@ -1288,7 +1288,7 @@ def render_udpu_list():
         st.session_state.selected_udpu = None
         st.rerun()
 
-    with st.container(key="card"):
+    with st.container(key="udpu_lookup_card"):
         st.markdown("#### Lookup by MAC")
         with st.form("udpu_mac_lookup_form", border=False):
             mac_value = st.text_input("MAC address", value=st.session_state.udpu_mac_lookup)
@@ -1298,13 +1298,17 @@ def render_udpu_list():
         if lookup:
             st.session_state.udpu_mac_lookup = mac_value
             st.session_state.udpu_mac_subscriber = subscriber_uid
-            try:
-                with st.spinner("Searching uDPU..."):
-                    result = fetch_udpu_by_mac(mac_value.strip(), subscriber_uid.strip() or "none")
-                st.session_state.udpu_mac_result = result
-            except RuntimeError as exc:
+            if not mac_value.strip():
                 st.session_state.udpu_mac_result = None
-                st.error(str(exc))
+                st.error("MAC address is required")
+            else:
+                try:
+                    with st.spinner("Searching uDPU..."):
+                        result = fetch_udpu_by_mac(mac_value.strip(), subscriber_uid.strip() or "none")
+                    st.session_state.udpu_mac_result = result
+                except RuntimeError as exc:
+                    st.session_state.udpu_mac_result = None
+                    st.error(str(exc))
 
         result = st.session_state.udpu_mac_result
         if result:
@@ -1373,7 +1377,7 @@ def render_udpu_list():
             if rows_sel:
                 selected_idx = rows_sel[0]
 
-        with st.container(key="card"):
+        with st.container(key="udpu_actions_card"):
             st.markdown("#### Actions")
             if selected_idx is None:
                 st.caption("Select a uDPU in the table to enable actions.")
