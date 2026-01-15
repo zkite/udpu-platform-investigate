@@ -271,6 +271,23 @@ def fetch_udpu_statuses():
 def fetch_udpu_status(subscriber_uid):
     return api_request("GET", f"/udpu/{subscriber_uid}/status")
 
+def fetch_udpu_by_mac(mac_address, subscriber_uid="none"):
+    if subscriber_uid:
+        return api_request("GET", f"/adapter/{mac_address}/udpu?subscriber={subscriber_uid}")
+    return api_request("GET", f"/adapter/{mac_address}/udpu")
+
+def update_udpu_bulk(location_id, payload):
+    return api_request("PUT", f"/udpu_bulk/{location_id}", payload)
+
+def delete_udpu_by_mac(mac_address):
+    return api_request("DELETE", f"/adapter/{mac_address}/udpu")
+
+def post_udpu_status(payload):
+    return api_request("POST", "/udpu/status", payload)
+
+def post_unregistered_device(payload):
+    return api_request("POST", "/unregistered_device", payload)
+
 
 def fetch_unregistered_devices():
     devices = api_request("GET", "/unregistered_devices")
@@ -308,6 +325,9 @@ def ensure_state():
     st.session_state.setdefault("udpu_view", "list")
     st.session_state.setdefault("selected_udpu", None)
     st.session_state.setdefault("udpu_location", "")
+    st.session_state.setdefault("udpu_mac_lookup", "")
+    st.session_state.setdefault("udpu_mac_subscriber", "")
+    st.session_state.setdefault("udpu_mac_result", None)
     st.session_state.setdefault("jobs_view", "list")
     st.session_state.setdefault("selected_job", None)
 
@@ -1113,6 +1133,26 @@ def render_udpu_detail():
         else:
             st.caption("Status not found.")
 
+    with st.container(key="card_narrow"):
+        st.markdown("#### Report status")
+        with st.form("udpu_status_form", border=False):
+            status_value = st.selectbox(
+                "Status",
+                options=["online", "offline", "unknown"],
+                index=0,
+            )
+            submitted = st.form_submit_button("Send status", use_container_width=True)
+
+        if submitted:
+            try:
+                payload = {"subscriber_uid": subscriber_uid, "status": status_value}
+                with st.spinner("Sending status..."):
+                    post_udpu_status(payload)
+                st.toast("Status updated")
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
+
 
 def render_udpu_form(title: str, udpu=None):
     defaults = udpu or {}
@@ -1248,6 +1288,46 @@ def render_udpu_list():
         st.session_state.selected_udpu = None
         st.rerun()
 
+    with st.container(key="card"):
+        st.markdown("#### Lookup by MAC")
+        with st.form("udpu_mac_lookup_form", border=False):
+            mac_value = st.text_input("MAC address", value=st.session_state.udpu_mac_lookup)
+            subscriber_uid = st.text_input("Fallback subscriber UID", value=st.session_state.udpu_mac_subscriber)
+            lookup = st.form_submit_button("Find", use_container_width=True)
+
+        if lookup:
+            st.session_state.udpu_mac_lookup = mac_value
+            st.session_state.udpu_mac_subscriber = subscriber_uid
+            try:
+                with st.spinner("Searching uDPU..."):
+                    result = fetch_udpu_by_mac(mac_value.strip(), subscriber_uid.strip() or "none")
+                st.session_state.udpu_mac_result = result
+            except RuntimeError as exc:
+                st.session_state.udpu_mac_result = None
+                st.error(str(exc))
+
+        result = st.session_state.udpu_mac_result
+        if result:
+            st.write(f"Subscriber UID: **{result.get('subscriber_uid', '')}**")
+            st.write(f"Location: **{result.get('location', '') or '-'}**")
+            st.write(f"Role: **{result.get('role', '') or '-'}**")
+            st.write(f"MAC address: **{result.get('mac_address', '') or '-'}**")
+
+            a1, a2 = st.columns(2)
+            if a1.button("Open", use_container_width=True):
+                st.session_state.selected_udpu = result.get("subscriber_uid")
+                st.session_state.udpu_view = "detail"
+                st.rerun()
+            if a2.button("Delete by MAC", use_container_width=True):
+                try:
+                    with st.spinner("Deleting uDPU..."):
+                        delete_udpu_by_mac(result.get("mac_address", ""))
+                    st.session_state.udpu_mac_result = None
+                    st.toast("uDPU deleted")
+                    st.rerun()
+                except RuntimeError as exc:
+                    st.error(str(exc))
+
     if not st.session_state.udpu_location:
         st.info("No locations available.")
         return
@@ -1324,6 +1404,51 @@ def render_udpu_list():
                 st.session_state.udpu_view = "detail"
                 st.rerun()
 
+    st.markdown("### Bulk update")
+    roles = []
+    try:
+        roles = fetch_roles()
+    except RuntimeError:
+        roles = []
+
+    role_options = [r.get("name", "") for r in roles if r.get("name")]
+
+    with st.container(key="card_narrow"):
+        with st.form("udpu_bulk_update_form", border=False):
+            if role_options:
+                role_value = st.selectbox("Role", options=role_options, index=0)
+            else:
+                role_value = st.text_input("Role")
+
+            new_location = st.text_input("New location", value="")
+            mac_address = st.text_input("MAC address", value="")
+            upstream_qos = st.text_input("Upstream QoS", value="")
+            downstream_qos = st.text_input("Downstream QoS", value="")
+            submitted = st.form_submit_button("Apply bulk update", use_container_width=True)
+
+        if submitted:
+            if not st.session_state.udpu_location:
+                st.error("Location is required")
+            elif not role_value or not role_value.strip():
+                st.error("Role is required")
+            else:
+                payload = {"role": role_value.strip()}
+                if new_location.strip():
+                    payload["location"] = new_location.strip()
+                if mac_address.strip():
+                    payload["mac_address"] = mac_address.strip()
+                if upstream_qos.strip():
+                    payload["upstream_qos"] = upstream_qos.strip()
+                if downstream_qos.strip():
+                    payload["downstream_qos"] = downstream_qos.strip()
+                try:
+                    with st.spinner("Applying bulk update..."):
+                        update_udpu_bulk(st.session_state.udpu_location, payload)
+                    st.toast("Bulk update applied")
+                    st.rerun()
+                except RuntimeError as exc:
+                    st.error(str(exc))
+
     st.markdown("### Status overview")
     try:
         statuses = fetch_udpu_statuses()
@@ -1355,6 +1480,35 @@ def render_udpu_list():
             st.code(json.dumps(devices, indent=2), language="json")
     else:
         st.info("No unregistered devices found")
+
+    st.markdown("### Add unregistered device")
+    with st.container(key="card_narrow"):
+        with st.form("unregistered_device_form", border=False):
+            subscriber_uid = st.text_input("Subscriber UID", value="")
+            ip_address = st.text_input("IP address", value="")
+            last_call_home_dt = st.text_input("Last call home (ISO 8601)", value="")
+            submitted = st.form_submit_button("Add device", use_container_width=True)
+
+        if submitted:
+            if not subscriber_uid.strip():
+                st.error("Subscriber UID is required")
+            elif not ip_address.strip():
+                st.error("IP address is required")
+            elif not last_call_home_dt.strip():
+                st.error("Last call home is required")
+            else:
+                payload = {
+                    "subscriber_uid": subscriber_uid.strip(),
+                    "ip_address": ip_address.strip(),
+                    "last_call_home_dt": last_call_home_dt.strip(),
+                }
+                try:
+                    with st.spinner("Adding device..."):
+                        post_unregistered_device(payload)
+                    st.toast("Device added")
+                    st.rerun()
+                except RuntimeError as exc:
+                    st.error(str(exc))
 
 
 def render_udpu():
