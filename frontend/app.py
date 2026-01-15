@@ -1269,7 +1269,7 @@ def render_udpu_list():
         else:
             top_left.caption("No locations available.")
 
-        if top_right.button("Add UDPU", use_container_width=True):
+        if top_right.button("Add uDPU", use_container_width=True):
             st.session_state.udpu_view = "add"
             st.session_state.selected_udpu = None
             st.rerun()
@@ -1453,7 +1453,7 @@ def render_udpu_list():
         else:
             st.code(json.dumps(statuses, indent=2), language="json")
     else:
-        st.info("No UDPU status data found")
+        st.info("No uDPU status data found")
 
     st.markdown("### Unregistered devices")
     try:
@@ -1856,7 +1856,7 @@ def render_app():
                 set_active_tab("Roles")
             if st.button("VBCE", use_container_width=True, type="primary" if current == "VBCE" else "secondary"):
                 set_active_tab("VBCE")
-            if st.button("uDPU", use_container_width=True, type="primary" if current == "UDPU" else "secondary"):
+            if st.button("uDPU", use_container_width=True, type="primary" if current == "uDPU" else "secondary"):
                 set_active_tab("uDPU")
             if st.button("Jobs", use_container_width=True, type="primary" if current == "Jobs" else "secondary"):
                 set_active_tab("Jobs")
