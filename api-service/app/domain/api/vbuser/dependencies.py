@@ -82,7 +82,8 @@ async def delete_vbuser(redis: Redis, vbu_uid: str, location_id: str, seed_idx: 
             return
         vbce_key = f"{VBCE_ENTITY}:{vbce_name}"
         vbce = await get_vbce(redis, vbce_name)
-        current_users = int(vbce["current_users"])
+        current_users = vbce.get("current_users")
+        current_users = int(current_users) if current_users is not None and current_users != "" else 0
         vbce_seeds = vbce.get("seed_idx_used", "")
         vbce_seeds = vbce_seeds.split(",") if vbce_seeds else []
         if str(seed_idx) in vbce_seeds:
@@ -90,14 +91,18 @@ async def delete_vbuser(redis: Redis, vbu_uid: str, location_id: str, seed_idx: 
         vbce["seed_idx_used"] = ",".join(vbce_seeds)
         if current_users == 1:
             vbce["current_users"] = current_users - 1
-            vbce["available_users"] = int(vbce["max_users"]) - int(vbce["current_users"])
+            max_users = vbce.get("max_users")
+            max_users = int(max_users) if max_users is not None and max_users != "" else 0
+            vbce["available_users"] = max_users - int(vbce["current_users"])
             vbce["location_id"] = ""
             await redis.hset(vbce_key, mapping=vbce)
             await redis.srem(VBCE_LOCATION_LIST, location_id)
             await redis.delete(location_id)
         if current_users > 1:
             vbce["current_users"] = current_users - 1
-            vbce["available_users"] = int(vbce["max_users"]) - int(vbce["current_users"])
+            max_users = vbce.get("max_users")
+            max_users = int(max_users) if max_users is not None and max_users != "" else 0
+            vbce["available_users"] = max_users - int(vbce["current_users"])
             await redis.hset(vbce_key, mapping=vbce)
         await redis.delete(f"{VBUSER_ENTITY}:{vbu_uid}")
     except (ResponseError, ReadOnlyError) as e:
