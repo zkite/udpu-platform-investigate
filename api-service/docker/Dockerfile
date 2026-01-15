@@ -1,5 +1,5 @@
 # Use a slim Python 3.11.12 base image
-FROM python:3.11.12-slim
+FROM python:3.14.2-slim
 
 # Ensure stdout and stderr are unbuffered
 ENV PYTHONUNBUFFERED=1
