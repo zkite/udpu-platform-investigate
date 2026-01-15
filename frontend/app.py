@@ -291,9 +291,6 @@ def update_udpu_bulk(location_id, payload):
 def delete_udpu_by_mac(mac_address):
     return api_request("DELETE", f"/adapter/{mac_address}/udpu")
 
-def post_udpu_status(payload):
-    return api_request("POST", "/udpu/status", payload)
-
 def post_unregistered_device(payload):
     return api_request("POST", "/unregistered_device", payload)
 
@@ -1141,27 +1138,6 @@ def render_udpu_detail():
             st.caption(f"Status unavailable: {status_error}")
         else:
             st.caption("Status not found.")
-
-    with st.container(key="card_narrow"):
-        st.markdown("#### Report status")
-        with st.form("udpu_status_form", border=False):
-            status_value = st.selectbox(
-                "Status",
-                options=["online", "offline", "unknown"],
-                index=0,
-            )
-            submitted = st.form_submit_button("Send status", use_container_width=True)
-
-        if submitted:
-            try:
-                payload = {"subscriber_uid": subscriber_uid, "status": status_value}
-                with st.spinner("Sending status..."):
-                    post_udpu_status(payload)
-                st.toast("Status updated")
-                st.rerun()
-            except RuntimeError as exc:
-                st.error(str(exc))
-
 
 def render_udpu_form(title: str, udpu=None):
     defaults = udpu or {}
