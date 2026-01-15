@@ -1885,7 +1885,7 @@ def render_app():
             render_roles()
         elif selection == "VBCE":
             render_vbce()
-        elif selection == "UDPU":
+        elif selection == "uDPU":
             render_udpu()
         elif selection == "Jobs":
             render_jobs()
