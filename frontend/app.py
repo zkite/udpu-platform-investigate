@@ -162,6 +162,15 @@ h1, h2, h3, h4 { color: #1a1d24; }
     color: #27329a;
 }
 
+/* ---- uDPU toolbar alignment ---- */
+.st-key-udpu_toolbar [data-testid="stHorizontalBlock"] {
+    align-items: flex-end;
+}
+
+.st-key-udpu_toolbar .stButton {
+    margin-bottom: 0.15rem;
+}
+
 /* ---- Hard-hide Deploy (CSS fallback) ---- */
 [data-testid="stDeployButton"],
 [data-testid="stAppDeployButton"],
@@ -1270,23 +1279,24 @@ def render_udpu_list():
 
     location_options = sorted(_normalize_location_options(locations))
 
-    top_left, top_right = st.columns([6, 2])
-    if location_options:
-        if st.session_state.udpu_location not in location_options:
-            st.session_state.udpu_location = location_options[0]
-        selected_location = top_left.selectbox(
-            "Location",
-            options=location_options,
-            index=location_options.index(st.session_state.udpu_location),
-        )
-        st.session_state.udpu_location = selected_location
-    else:
-        top_left.caption("No locations available.")
+    with st.container(key="udpu_toolbar"):
+        top_left, top_right = st.columns([6, 2])
+        if location_options:
+            if st.session_state.udpu_location not in location_options:
+                st.session_state.udpu_location = location_options[0]
+            selected_location = top_left.selectbox(
+                "Location",
+                options=location_options,
+                index=location_options.index(st.session_state.udpu_location),
+            )
+            st.session_state.udpu_location = selected_location
+        else:
+            top_left.caption("No locations available.")
 
-    if top_right.button("Add UDPU", use_container_width=True):
-        st.session_state.udpu_view = "add"
-        st.session_state.selected_udpu = None
-        st.rerun()
+        if top_right.button("Add UDPU", use_container_width=True):
+            st.session_state.udpu_view = "add"
+            st.session_state.selected_udpu = None
+            st.rerun()
 
     with st.container(key="udpu_lookup_card"):
         st.markdown("#### Lookup by MAC")
