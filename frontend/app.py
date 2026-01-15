@@ -261,6 +261,24 @@ def fetch_udpu_list_by_location(location_id: str):
 def fetch_udpu(subscriber_uid: str):
     return api_request("GET", f"/subscriber/{subscriber_uid}/udpu")
 
+def fetch_udpu_statuses():
+    statuses = api_request("GET", "/udpu/status")
+    if isinstance(statuses, list):
+        return statuses
+    return []
+
+
+def fetch_udpu_status(subscriber_uid):
+    return api_request("GET", f"/udpu/{subscriber_uid}/status")
+
+
+def fetch_unregistered_devices():
+    devices = api_request("GET", "/unregistered_devices")
+    if isinstance(devices, list):
+        return devices
+    return []
+
+
 def fetch_jobs():
     jobs = api_request("GET", "/jobs")
     if isinstance(jobs, list):
@@ -1012,6 +1030,18 @@ def _udpu_bool(value):
     return False
 
 
+def _normalize_location_options(locations):
+    options = []
+    for location in locations:
+        if isinstance(location, dict):
+            name = location.get("name")
+            if name:
+                options.append(str(name))
+        elif location is not None:
+            options.append(str(location))
+    return options
+
+
 def render_udpu_detail():
     subscriber_uid = st.session_state.selected_udpu
     if not subscriber_uid:
@@ -1066,6 +1096,23 @@ def render_udpu_detail():
             st.write(f"Routes: **{udpu.get('wg_routes', '') or '-'}**")
             st.write(f"Endpoint: **{udpu.get('endpoint', '') or '-'}**")
 
+    status_data = None
+    status_error = None
+    try:
+        status_data = fetch_udpu_status(subscriber_uid)
+    except RuntimeError as exc:
+        status_error = str(exc)
+
+    with st.container(key="section"):
+        st.markdown("#### Status")
+        if status_data:
+            st.write(f"State: **{status_data.get('state', '') or '-'}**")
+            st.write(f"Status: **{status_data.get('status', '') or '-'}**")
+        elif status_error:
+            st.caption(f"Status unavailable: {status_error}")
+        else:
+            st.caption("Status not found.")
+
 
 def render_udpu_form(title: str, udpu=None):
     defaults = udpu or {}
@@ -1087,7 +1134,7 @@ def render_udpu_form(title: str, udpu=None):
     if defaults.get("role") and defaults.get("role") not in role_options:
         role_options.append(defaults.get("role"))
 
-    location_options = [location.get("name", "") for location in locations if location.get("name")]
+    location_options = _normalize_location_options(locations)
     if defaults.get("location") and defaults.get("location") not in location_options:
         location_options.append(defaults.get("location"))
 
@@ -1176,28 +1223,31 @@ def render_udpu_form(title: str, udpu=None):
 def render_udpu_list():
     st.title("UDPU")
 
-    # --- Auto-pick location without showing "Location" input ---
     try:
         locations = fetch_udpu_locations()
     except RuntimeError:
         locations = []
 
-    # Normalize/sort
-    location_options = sorted([str(loc) for loc in locations if loc is not None])
+    location_options = sorted(_normalize_location_options(locations))
 
-    # If no location chosen yet, pick the first available automatically
-    if not st.session_state.udpu_location and location_options:
-        st.session_state.udpu_location = location_options[0]
-        st.rerun()
+    top_left, top_right = st.columns([6, 2])
+    if location_options:
+        if st.session_state.udpu_location not in location_options:
+            st.session_state.udpu_location = location_options[0]
+        selected_location = top_left.selectbox(
+            "Location",
+            options=location_options,
+            index=location_options.index(st.session_state.udpu_location),
+        )
+        st.session_state.udpu_location = selected_location
+    else:
+        top_left.caption("No locations available.")
 
-    # Top row: only Add button (no Location field)
-    _, top_right = st.columns([6, 2])
     if top_right.button("Add UDPU", use_container_width=True):
         st.session_state.udpu_view = "add"
         st.session_state.selected_udpu = None
         st.rerun()
 
-    # If still no location (and none available), show info and stop
     if not st.session_state.udpu_location:
         st.info("No locations available.")
         return
@@ -1273,6 +1323,38 @@ def render_udpu_list():
                 st.session_state.selected_udpu = u.get("subscriber_uid")
                 st.session_state.udpu_view = "detail"
                 st.rerun()
+
+    st.markdown("### Status overview")
+    try:
+        statuses = fetch_udpu_statuses()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        statuses = []
+
+    if statuses:
+        if pd is not None:
+            df_status = pd.DataFrame(statuses)
+            st.dataframe(df_status, use_container_width=True, hide_index=True)
+        else:
+            st.code(json.dumps(statuses, indent=2), language="json")
+    else:
+        st.info("No UDPU status data found")
+
+    st.markdown("### Unregistered devices")
+    try:
+        devices = fetch_unregistered_devices()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        devices = []
+
+    if devices:
+        if pd is not None:
+            df_devices = pd.DataFrame(devices)
+            st.dataframe(df_devices, use_container_width=True, hide_index=True)
+        else:
+            st.code(json.dumps(devices, indent=2), language="json")
+    else:
+        st.info("No unregistered devices found")
 
 
 def render_udpu():
