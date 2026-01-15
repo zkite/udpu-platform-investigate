@@ -14,7 +14,7 @@ except Exception:
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api-service:8888")
 API_PREFIX = "/api/v1.0"
 
-st.set_page_config(page_title="UDPU Admin", layout="wide")
+st.set_page_config(page_title="uDPU Admin", layout="wide")
 
 
 # -----------------------------
@@ -414,9 +414,9 @@ def confirm_delete_vbce(vbce_name):
                 st.error(str(exc))
 
 
-@st.dialog("Delete UDPU?")
+@st.dialog("Delete uDPU?")
 def confirm_delete_udpu(subscriber_uid: str):
-    st.write(f"UDPU: **{subscriber_uid}**")
+    st.write(f"uDPU: **{subscriber_uid}**")
     st.warning("This action cannot be undone.")
 
     c1, c2 = st.columns([1, 1])
@@ -426,9 +426,9 @@ def confirm_delete_udpu(subscriber_uid: str):
     with c2:
         if st.button("Delete", type="primary", use_container_width=True):
             try:
-                with st.spinner("Deleting UDPU..."):
+                with st.spinner("Deleting uDPU..."):
                     api_request("DELETE", f"/subscriber/{subscriber_uid}/udpu")
-                st.toast("UDPU deleted")
+                st.toast("uDPU deleted")
                 st.session_state.udpu_view = "list"
                 st.session_state.selected_udpu = None
                 st.rerun()
@@ -1059,7 +1059,7 @@ def render_udpu_detail():
         confirm_delete_udpu(subscriber_uid)
 
     try:
-        with st.spinner("Loading UDPU..."):
+        with st.spinner("Loading uDPU..."):
             udpu = fetch_udpu(subscriber_uid)
     except RuntimeError as exc:
         st.error(str(exc))
@@ -1204,24 +1204,24 @@ def render_udpu_form(title: str, udpu=None):
 
     try:
         if udpu:
-            with st.spinner("Updating UDPU..."):
+            with st.spinner("Updating uDPU..."):
                 updated = api_request("PUT", f"/subscriber/{udpu.get('subscriber_uid','')}/udpu", payload)
             st.session_state.selected_udpu = (updated or {}).get("subscriber_uid", udpu.get("subscriber_uid"))
             st.session_state.udpu_view = "detail"
-            st.toast("UDPU updated")
+            st.toast("uDPU updated")
         else:
-            with st.spinner("Creating UDPU..."):
+            with st.spinner("Creating uDPU..."):
                 created = api_request("POST", "/udpu", payload)
             st.session_state.selected_udpu = (created or {}).get("subscriber_uid")
             st.session_state.udpu_view = "detail"
-            st.toast("UDPU created")
+            st.toast("uDPU created")
         st.rerun()
     except RuntimeError as exc:
         st.error(str(exc))
 
 
 def render_udpu_list():
-    st.title("UDPU")
+    st.title("uDPU")
 
     try:
         locations = fetch_udpu_locations()
@@ -1253,14 +1253,14 @@ def render_udpu_list():
         return
 
     try:
-        with st.spinner("Loading UDPU..."):
+        with st.spinner("Loading uDPU..."):
             udpus = fetch_udpu_list_by_location(st.session_state.udpu_location)
     except RuntimeError as exc:
         st.error(str(exc))
         return
 
     if not udpus:
-        st.info("No UDPU devices found")
+        st.info("No uDPU devices found")
         return
 
     if pd is not None:
@@ -1296,7 +1296,7 @@ def render_udpu_list():
         with st.container(key="card"):
             st.markdown("#### Actions")
             if selected_idx is None:
-                st.caption("Select a UDPU in the table to enable actions.")
+                st.caption("Select a uDPU in the table to enable actions.")
                 return
 
             selected_uid = str(df.iloc[selected_idx]["Subscriber UID"])
@@ -1364,7 +1364,7 @@ def render_udpu():
         render_udpu_detail()
         return
     if view == "add":
-        render_udpu_form("Add UDPU")
+        render_udpu_form("Add uDPU")
         return
     if view == "edit":
         subscriber_uid = st.session_state.selected_udpu
@@ -1376,7 +1376,7 @@ def render_udpu():
         except RuntimeError as exc:
             st.error(str(exc))
             return
-        render_udpu_form("Edit UDPU", udpu=udpu)
+        render_udpu_form("Edit uDPU", udpu=udpu)
         return
 
     render_udpu_list()
@@ -1712,8 +1712,8 @@ def render_app():
                 set_active_tab("Roles")
             if st.button("VBCE", use_container_width=True, type="primary" if current == "VBCE" else "secondary"):
                 set_active_tab("VBCE")
-            if st.button("UDPU", use_container_width=True, type="primary" if current == "UDPU" else "secondary"):
-                set_active_tab("UDPU")
+            if st.button("uDPU", use_container_width=True, type="primary" if current == "UDPU" else "secondary"):
+                set_active_tab("uDPU")
             if st.button("Jobs", use_container_width=True, type="primary" if current == "Jobs" else "secondary"):
                 set_active_tab("Jobs")
 
