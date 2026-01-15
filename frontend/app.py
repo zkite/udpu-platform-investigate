@@ -1030,6 +1030,18 @@ def _udpu_bool(value):
     return False
 
 
+def _normalize_location_options(locations):
+    options = []
+    for location in locations:
+        if isinstance(location, dict):
+            name = location.get("name")
+            if name:
+                options.append(str(name))
+        elif location is not None:
+            options.append(str(location))
+    return options
+
+
 def render_udpu_detail():
     subscriber_uid = st.session_state.selected_udpu
     if not subscriber_uid:
@@ -1122,7 +1134,7 @@ def render_udpu_form(title: str, udpu=None):
     if defaults.get("role") and defaults.get("role") not in role_options:
         role_options.append(defaults.get("role"))
 
-    location_options = [location.get("name", "") for location in locations if location.get("name")]
+    location_options = _normalize_location_options(locations)
     if defaults.get("location") and defaults.get("location") not in location_options:
         location_options.append(defaults.get("location"))
 
@@ -1211,28 +1223,31 @@ def render_udpu_form(title: str, udpu=None):
 def render_udpu_list():
     st.title("uDPU")
 
-    # --- Auto-pick location without showing "Location" input ---
     try:
         locations = fetch_udpu_locations()
     except RuntimeError:
         locations = []
 
-    # Normalize/sort
-    location_options = sorted([str(loc) for loc in locations if loc is not None])
+    location_options = sorted(_normalize_location_options(locations))
 
-    # If no location chosen yet, pick the first available automatically
-    if not st.session_state.udpu_location and location_options:
-        st.session_state.udpu_location = location_options[0]
-        st.rerun()
+    top_left, top_right = st.columns([6, 2])
+    if location_options:
+        if st.session_state.udpu_location not in location_options:
+            st.session_state.udpu_location = location_options[0]
+        selected_location = top_left.selectbox(
+            "Location",
+            options=location_options,
+            index=location_options.index(st.session_state.udpu_location),
+        )
+        st.session_state.udpu_location = selected_location
+    else:
+        top_left.caption("No locations available.")
 
-    # Top row: only Add button (no Location field)
-    _, top_right = st.columns([6, 2])
-    if top_right.button("Add uDPU", use_container_width=True):
+    if top_right.button("Add UDPU", use_container_width=True):
         st.session_state.udpu_view = "add"
         st.session_state.selected_udpu = None
         st.rerun()
 
-    # If still no location (and none available), show info and stop
     if not st.session_state.udpu_location:
         st.info("No locations available.")
         return
