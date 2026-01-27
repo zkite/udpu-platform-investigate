@@ -1,9 +1,11 @@
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import streamlit as st
+import websocket
 
 try:
     import pandas as pd
@@ -224,6 +226,36 @@ def api_request(method: str, path: str, payload=None):
         raise RuntimeError("API is unavailable") from exc
 
 
+def _build_ws_url(path, channel):
+    base = API_BASE_URL
+    if base.endswith(API_PREFIX):
+        base = base[: -len(API_PREFIX)]
+    parsed = urllib.parse.urlparse(base)
+    scheme = "wss" if parsed.scheme == "https" else "ws"
+    netloc = parsed.netloc or parsed.path
+    if not netloc:
+        raise RuntimeError("Invalid API base URL")
+    return f"{scheme}://{netloc}{API_PREFIX}{path}?channel={urllib.parse.quote(channel)}"
+
+
+def run_job_via_ws(job_name, channel):
+    url = _build_ws_url("/pub", channel)
+    try:
+        ws = websocket.create_connection(url, timeout=10)
+    except Exception as exc:
+        raise RuntimeError("WebSocket connection failed") from exc
+    try:
+        ws.send(f"run job {job_name}")
+        return ws.recv()
+    except Exception as exc:
+        raise RuntimeError("WebSocket request failed") from exc
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+
 def fetch_roles():
     roles = api_request("GET", "/roles")
     if isinstance(roles, list):
@@ -336,6 +368,8 @@ def ensure_state():
     st.session_state.setdefault("udpu_mac_result", None)
     st.session_state.setdefault("jobs_view", "list")
     st.session_state.setdefault("selected_job", None)
+    st.session_state.setdefault("job_ws_channel", "")
+    st.session_state.setdefault("job_ws_response", "")
 
 
 def do_logout():
@@ -1594,6 +1628,26 @@ def render_job_detail():
     if job.get("vbuser_id"):
         st.markdown("#### VB user id")
         st.write(job.get("vbuser_id", ""))
+
+    st.markdown("#### Run job")
+    with st.container(key="card"):
+        channel_value = st.text_input("Channel", value=st.session_state.job_ws_channel)
+        if st.button("Run job", use_container_width=True):
+            if not channel_value.strip():
+                st.error("Channel is required")
+                return
+            try:
+                with st.spinner("Running job..."):
+                    response = run_job_via_ws(name, channel_value.strip())
+                st.session_state.job_ws_channel = channel_value.strip()
+                st.session_state.job_ws_response = response
+                st.toast("Job command sent")
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+        if st.session_state.job_ws_response:
+            st.markdown("#### Response")
+            st.code(st.session_state.job_ws_response, language="text")
 
 
 def render_job_form(title, job=None):
