@@ -21,6 +21,10 @@ def _is_uid(identifier: str) -> bool:
         return False
 
 
+def _is_job_storage_key(key: str) -> bool:
+    return key.startswith(f"{JOB_PREFIX}:") and len(key.split(":")) == 3
+
+
 class JobRepository:
     """
     Repository for managing Job entities in Redis storage.
@@ -100,6 +104,8 @@ class JobRepository:
     async def get_all(self) -> List[JobSchema]:
         jobs = []
         async for key in self.redis.scan_iter(match=f"{JOB_PREFIX}:*", count=100):
+            if not _is_job_storage_key(key):
+                continue
             data = await self.redis.hgetall(key)
             if data:
                 jobs.append(JobSchema(**data))
@@ -122,6 +128,8 @@ class JobRepository:
 
         result: List[JobSchema] = []
         async for key in self.redis.scan_iter(match=f"{JOB_PREFIX}:*", count=100):
+            if not _is_job_storage_key(key):
+                continue
             data = await self.redis.hgetall(key)
             if not data:
                 continue
