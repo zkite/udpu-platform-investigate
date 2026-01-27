@@ -1949,8 +1949,8 @@ def render_app():
                 set_active_tab("Roles")
             if st.button("VBCE", use_container_width=True, type="primary" if current == "VBCE" else "secondary"):
                 set_active_tab("VBCE")
-            if st.button("mDPU", use_container_width=True, type="primary" if current == "uDPU" else "secondary"):
-                set_active_tab("uDPU")
+            if st.button("mDPU", use_container_width=True, type="primary" if current == "mDPU" else "secondary"):
+                set_active_tab("mDPU")
             if st.button("Jobs", use_container_width=True, type="primary" if current == "Jobs" else "secondary"):
                 set_active_tab("Jobs")
 
@@ -1968,7 +1968,7 @@ def render_app():
             render_roles()
         elif selection == "VBCE":
             render_vbce()
-        elif selection == "uDPU":
+        elif selection == "mDPU":
             render_udpu()
         elif selection == "Jobs":
             render_jobs()
