@@ -178,7 +178,7 @@ async def pub_endpoint(
                         {
                             "action_type": "job",
                             "command": job.command,
-                            "frequency": job.frequency,
+                            "frequency": job.frequency.value if job.frequency else "once",
                             "require_output": str(job.require_output).lower(),
                             "name": job.name,
                             "locked": str(job.locked).lower(),
