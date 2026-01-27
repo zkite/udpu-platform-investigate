@@ -370,6 +370,7 @@ def ensure_state():
     st.session_state.setdefault("selected_job", None)
     st.session_state.setdefault("job_ws_channel", "")
     st.session_state.setdefault("job_ws_response", "")
+    st.session_state.setdefault("job_ws_active_job", None)
 
 
 def do_logout():
@@ -384,6 +385,8 @@ def do_logout():
     st.session_state.udpu_location = ""
     st.session_state.jobs_view = "list"
     st.session_state.selected_job = None
+    st.session_state.job_ws_response = ""
+    st.session_state.job_ws_active_job = None
 
     try:
         if "auth" in st.query_params:
@@ -396,6 +399,9 @@ def do_logout():
 
 def set_active_tab(tab: str):
     st.session_state.active_tab = tab
+    if tab != "Jobs":
+        st.session_state.job_ws_response = ""
+        st.session_state.job_ws_active_job = None
     st.rerun()
 
 
@@ -1579,11 +1585,34 @@ def _job_frequency_label(value):
     return value
 
 
+def _job_channel_options():
+    locations = fetch_udpu_locations()
+    location_options = sorted(_normalize_location_options(locations))
+    if not location_options:
+        return []
+    channels = []
+    for location in location_options:
+        udpus = fetch_udpu_list_by_location(location)
+        for udpu in udpus:
+            subscriber_uid = str(udpu.get("subscriber_uid", "") or "").strip()
+            if subscriber_uid:
+                channels.append(subscriber_uid)
+    return sorted(set(channels))
+
+
 def render_job_detail():
     name = st.session_state.selected_job
     if not name:
         st.session_state.jobs_view = "list"
         st.rerun()
+    if name == "registered_device":
+        st.session_state.jobs_view = "list"
+        st.session_state.selected_job = None
+        st.rerun()
+
+    if st.session_state.job_ws_active_job != name:
+        st.session_state.job_ws_response = ""
+        st.session_state.job_ws_active_job = name
 
     top = st.columns([1, 6, 2, 2])
     if top[0].button("← Back", use_container_width=True):
@@ -1631,7 +1660,25 @@ def render_job_detail():
 
     st.markdown("#### Run job")
     with st.container(key="card"):
-        channel_value = st.text_input("Channel", value=st.session_state.job_ws_channel)
+        channel_options = []
+        try:
+            channel_options = _job_channel_options()
+        except RuntimeError:
+            channel_options = []
+
+        channel_value = st.session_state.job_ws_channel
+        if channel_options:
+            if channel_value and channel_value not in channel_options:
+                channel_options = [channel_value] + channel_options
+            channel_options = [""] + channel_options
+            channel_value = st.selectbox(
+                "Channel",
+                options=channel_options,
+                index=channel_options.index(channel_value) if channel_value in channel_options else 0,
+                format_func=lambda value: "Select channel" if value == "" else value,
+            )
+        else:
+            channel_value = st.text_input("Channel", value=channel_value)
         if st.button("Run job", use_container_width=True):
             if not channel_value.strip():
                 st.error("Channel is required")
@@ -1796,6 +1843,8 @@ def render_job_list():
         st.error(str(exc))
         return
 
+    jobs = [job for job in jobs if job.get("name") != "registered_device"]
+
     if not jobs:
         st.info("No jobs found")
         return
@@ -1865,6 +1914,9 @@ def render_job_list():
 
 def render_jobs():
     view = st.session_state.jobs_view
+    if view != "detail":
+        st.session_state.job_ws_response = ""
+        st.session_state.job_ws_active_job = None
 
     if view == "detail":
         render_job_detail()
