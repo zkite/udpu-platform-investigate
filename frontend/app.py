@@ -1637,11 +1637,9 @@ def render_job_detail():
     frequency_value = str(job.get("frequency") or "")
     frequency_label = _job_frequency_label(frequency_value or "")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2 = st.columns(2)
     c1.metric("Frequency", frequency_label or "-")
-    c2.metric("Role", job.get("role", "") or "-")
-    c3.metric("Type", job.get("type", "") or "-")
-    c4.metric("Locked", job.get("locked", "") or "-")
+    c2.metric("Locked", job.get("locked", "") or "-")
 
     st.markdown("#### Command")
     st.code(job.get("command", "") or "", language="bash")
@@ -1653,10 +1651,6 @@ def render_job_detail():
     if job.get("required_software"):
         st.markdown("#### Required software")
         st.code(job.get("required_software", "") or "", language="text")
-
-    if job.get("vbuser_id"):
-        st.markdown("#### VB user id")
-        st.write(job.get("vbuser_id", ""))
 
     st.markdown("#### Run job")
     with st.container(key="card"):
@@ -1763,18 +1757,9 @@ def render_job_form(title, job=None):
                 "Locked",
                 value=defaults.get("locked", ""),
             )
-            role = st.text_input(
-                "Role",
-                value=defaults.get("role", ""),
-            )
-            job_type = st.text_input(
-                "Type",
-                value=defaults.get("type", ""),
-            )
-            vbuser_id = st.text_input(
-                "VB user id",
-                value=defaults.get("vbuser_id", ""),
-            )
+            role = defaults.get("role", "")
+            job_type = defaults.get("type", "")
+            vbuser_id = defaults.get("vbuser_id", "")
 
             save = st.form_submit_button("Save", use_container_width=True)
 
@@ -1858,8 +1843,6 @@ def render_job_list():
                     "Name": job.get("name", ""),
                     "Description": job.get("description", ""),
                     "Frequency": _job_frequency_label(frequency_value),
-                    "Role": job.get("role", ""),
-                    "Type": job.get("type", ""),
                     "Locked": job.get("locked", ""),
                 }
             )
