@@ -1719,10 +1719,14 @@ def render_job_form(title, job=None):
                 value=defaults.get("command", ""),
                 height=140,
             )
-            require_output = st.text_area(
+            require_output_default = str(defaults.get("require_output") or "").lower()
+            require_output_options = ["false", "true"]
+            if require_output_default not in require_output_options:
+                require_output_default = "false"
+            require_output = st.selectbox(
                 "Require output",
-                value=defaults.get("require_output", ""),
-                height=100,
+                options=require_output_options,
+                index=require_output_options.index(require_output_default),
             )
             required_software = st.text_input(
                 "Required software",
