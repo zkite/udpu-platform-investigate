@@ -73,7 +73,7 @@ class JobSchema(BaseModel):
     # Serialisation helpers
     # ------------------------------------------------------------------
     def serialize(self) -> dict:  # noqa: D401
-        data = self.model_dump()
+        data = self.model_dump(exclude_none=True)
         data["uid"] = self.uid
         return data
 
