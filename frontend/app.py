@@ -246,7 +246,17 @@ def run_job_via_ws(job_name, channel):
         raise RuntimeError("WebSocket connection failed") from exc
     try:
         ws.send(f"run job {job_name}")
-        return ws.recv()
+        message = ws.recv()
+        try:
+            payload = json.loads(message)
+        except json.JSONDecodeError:
+            return message
+        if isinstance(payload, dict) and "response" in payload:
+            response_value = payload["response"]
+            if isinstance(response_value, str):
+                return response_value
+            return json.dumps(response_value, ensure_ascii=False)
+        return message
     except Exception as exc:
         raise RuntimeError("WebSocket request failed") from exc
     finally:
