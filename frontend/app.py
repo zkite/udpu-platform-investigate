@@ -16,7 +16,7 @@ except Exception:
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api-service:8888")
 API_PREFIX = "/api/v1.0"
 
-st.set_page_config(page_title="uDPU Admin", layout="wide")
+st.set_page_config(page_title="mDPU Admin", layout="wide")
 
 
 # -----------------------------
@@ -164,7 +164,7 @@ h1, h2, h3, h4 { color: #1a1d24; }
     color: #27329a;
 }
 
-/* ---- uDPU toolbar alignment ---- */
+/* ---- mDPU toolbar alignment ---- */
 .st-key-udpu_toolbar [data-testid="stHorizontalBlock"] {
     align-items: flex-end;
 }
@@ -480,9 +480,9 @@ def confirm_delete_vbce(vbce_name):
                 st.error(str(exc))
 
 
-@st.dialog("Delete uDPU?")
+@st.dialog("Delete mDPU?")
 def confirm_delete_udpu(subscriber_uid: str):
-    st.write(f"uDPU: **{subscriber_uid}**")
+    st.write(f"mDPU: **{subscriber_uid}**")
     st.warning("This action cannot be undone.")
 
     c1, c2 = st.columns([1, 1])
@@ -492,9 +492,9 @@ def confirm_delete_udpu(subscriber_uid: str):
     with c2:
         if st.button("Delete", type="primary", use_container_width=True):
             try:
-                with st.spinner("Deleting uDPU..."):
+                with st.spinner("Deleting mDPU..."):
                     api_request("DELETE", f"/subscriber/{subscriber_uid}/udpu")
-                st.toast("uDPU deleted")
+                st.toast("mDPU deleted")
                 st.session_state.udpu_view = "list"
                 st.session_state.selected_udpu = None
                 st.rerun()
@@ -1086,7 +1086,7 @@ def render_vbce():
 
 
 # -----------------------------
-# UDPU helpers
+# mDPU helpers
 # -----------------------------
 def _udpu_bool(value):
     if isinstance(value, bool):
@@ -1125,7 +1125,7 @@ def render_udpu_detail():
         confirm_delete_udpu(subscriber_uid)
 
     try:
-        with st.spinner("Loading uDPU..."):
+        with st.spinner("Loading mDPU..."):
             udpu = fetch_udpu(subscriber_uid)
     except RuntimeError as exc:
         st.error(str(exc))
@@ -1269,24 +1269,24 @@ def render_udpu_form(title: str, udpu=None):
 
     try:
         if udpu:
-            with st.spinner("Updating uDPU..."):
+            with st.spinner("Updating mDPU..."):
                 updated = api_request("PUT", f"/subscriber/{udpu.get('subscriber_uid','')}/udpu", payload)
             st.session_state.selected_udpu = (updated or {}).get("subscriber_uid", udpu.get("subscriber_uid"))
             st.session_state.udpu_view = "detail"
-            st.toast("uDPU updated")
+            st.toast("mDPU updated")
         else:
-            with st.spinner("Creating uDPU..."):
+            with st.spinner("Creating mDPU..."):
                 created = api_request("POST", "/udpu", payload)
             st.session_state.selected_udpu = (created or {}).get("subscriber_uid")
             st.session_state.udpu_view = "detail"
-            st.toast("uDPU created")
+            st.toast("mDPU created")
         st.rerun()
     except RuntimeError as exc:
         st.error(str(exc))
 
 
 def render_udpu_list():
-    st.title("uDPU")
+    st.title("mDPU")
 
     try:
         locations = fetch_udpu_locations()
@@ -1309,7 +1309,7 @@ def render_udpu_list():
         else:
             top_left.caption("No locations available.")
 
-        if top_right.button("Add uDPU", use_container_width=True):
+        if top_right.button("Add mDPU", use_container_width=True):
             st.session_state.udpu_view = "add"
             st.session_state.selected_udpu = None
             st.rerun()
@@ -1329,7 +1329,7 @@ def render_udpu_list():
                 st.error("MAC address is required")
             else:
                 try:
-                    with st.spinner("Searching uDPU..."):
+                    with st.spinner("Searching mDPU..."):
                         result = fetch_udpu_by_mac(mac_value.strip(), subscriber_uid.strip() or "none")
                     st.session_state.udpu_mac_result = result
                 except RuntimeError as exc:
@@ -1350,10 +1350,10 @@ def render_udpu_list():
                 st.rerun()
             if a2.button("Delete by MAC", use_container_width=True):
                 try:
-                    with st.spinner("Deleting uDPU..."):
+                    with st.spinner("Deleting mDPU..."):
                         delete_udpu_by_mac(result.get("mac_address", ""))
                     st.session_state.udpu_mac_result = None
-                    st.toast("uDPU deleted")
+                    st.toast("mDPU deleted")
                     st.rerun()
                 except RuntimeError as exc:
                     st.error(str(exc))
@@ -1363,14 +1363,14 @@ def render_udpu_list():
         return
 
     try:
-        with st.spinner("Loading uDPU..."):
+        with st.spinner("Loading mDPU..."):
             udpus = fetch_udpu_list_by_location(st.session_state.udpu_location)
     except RuntimeError as exc:
         st.error(str(exc))
         return
 
     if not udpus:
-        st.info("No uDPU devices found")
+        st.info("No mDPU devices found")
         return
 
     if pd is not None:
@@ -1406,7 +1406,7 @@ def render_udpu_list():
         with st.container(key="udpu_actions_card"):
             st.markdown("#### Actions")
             if selected_idx is None:
-                st.caption("Select a uDPU in the table to enable actions.")
+                st.caption("Select a mDPU in the table to enable actions.")
                 return
 
             selected_uid = str(df.iloc[selected_idx]["Subscriber UID"])
@@ -1493,7 +1493,7 @@ def render_udpu_list():
         else:
             st.code(json.dumps(statuses, indent=2), language="json")
     else:
-        st.info("No uDPU status data found")
+        st.info("No mDPU status data found")
 
     st.markdown("### Unregistered devices")
     try:
@@ -1548,7 +1548,7 @@ def render_udpu():
         render_udpu_detail()
         return
     if view == "add":
-        render_udpu_form("Add uDPU")
+        render_udpu_form("Add mDPU")
         return
     if view == "edit":
         subscriber_uid = st.session_state.selected_udpu
@@ -1560,7 +1560,7 @@ def render_udpu():
         except RuntimeError as exc:
             st.error(str(exc))
             return
-        render_udpu_form("Edit uDPU", udpu=udpu)
+        render_udpu_form("Edit mDPU", udpu=udpu)
         return
 
     render_udpu_list()
@@ -1949,7 +1949,7 @@ def render_app():
                 set_active_tab("Roles")
             if st.button("VBCE", use_container_width=True, type="primary" if current == "VBCE" else "secondary"):
                 set_active_tab("VBCE")
-            if st.button("uDPU", use_container_width=True, type="primary" if current == "uDPU" else "secondary"):
+            if st.button("mDPU", use_container_width=True, type="primary" if current == "uDPU" else "secondary"):
                 set_active_tab("uDPU")
             if st.button("Jobs", use_container_width=True, type="primary" if current == "Jobs" else "secondary"):
                 set_active_tab("Jobs")
