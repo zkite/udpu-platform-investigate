@@ -1,0 +1,1 @@
+WS_PATH = "/pubsub"

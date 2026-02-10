@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    user: root
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --dir /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    network_mode: "host"
+
+  api-service:
+    build:
+      context: ./api-service
+      dockerfile: docker/Dockerfile
+    container_name: api-service
+    user: root
+    privileged: true
+    env_file:
+      - ./api-service/.env.api.${ENV}
+    volumes:
+      - /lib/modules:/lib/modules:ro
+    network_mode: "host"
+
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: docker/Dockerfile
+    container_name: discovery-service
+    env_file:
+      - ./discovery-service/.env.discovery.${ENV}
+    network_mode: "host"
+
+  repository-service:
+    build:
+      context: ./repository-service
+      dockerfile: docker/Dockerfile
+    container_name: repository-service
+    env_file:
+      - ./repository-service/.env.repo.${ENV}
+    network_mode: "host"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    environment:
+      - API_BASE_URL=http://localhost:8888
+      - STREAMLIT_SERVER_PORT=8501
+    depends_on:
+      - api-service
+    network_mode: "host"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests;requests.get('http://localhost:8501/').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-data:
