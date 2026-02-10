@@ -26,6 +26,8 @@ class JobLogService:
             keys = await self._redis.keys(pattern)
             results: List[JobLogSchema] = []
             for key in keys:
+                if "registered_device" in key:
+                    continue
                 data = await self._redis.hgetall(key)
                 results.append(JobLogSchema(**data))
             return results
