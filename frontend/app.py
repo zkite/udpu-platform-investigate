@@ -1961,18 +1961,20 @@ def render_logs():
     st.title("Logs")
 
     try:
-        with st.spinner("Loading jobs..."):
-            jobs = fetch_jobs()
-    except RuntimeError:
-        jobs = []
+        with st.spinner("Loading logs..."):
+            all_logs = fetch_job_logs()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
 
     job_names = sorted(
         {
-            str(job.get("name", "") or "").strip()
-            for job in jobs
-            if str(job.get("name", "") or "").strip()
+            str(entry.get("name", "") or "").strip()
+            for entry in all_logs
+            if isinstance(entry, dict) and str(entry.get("name", "") or "").strip()
         }
     )
+
     filter_options = ["All jobs"] + job_names
     if st.session_state.logs_job_filter not in filter_options:
         st.session_state.logs_job_filter = "All jobs"
@@ -2012,10 +2014,10 @@ def render_logs():
 
     selected_job = st.session_state.logs_job_filter
     try:
-        with st.spinner("Loading logs..."):
-            if selected_job == "All jobs":
-                logs = fetch_job_logs()
-            else:
+        if selected_job == "All jobs":
+            logs = all_logs
+        else:
+            with st.spinner("Loading filtered logs..."):
                 logs = fetch_job_logs_by_name(selected_job)
     except RuntimeError as exc:
         st.error(str(exc))
