@@ -1726,12 +1726,23 @@ def render_job_form(title, job=None):
     st.subheader(title)
 
     frequency_value = str(defaults.get("frequency") or "")
-    vbce_locations = []
+    default_role = str(defaults.get("role", "") or "").strip()
+    role_options = []
     if not job:
+        roles = []
         try:
-            vbce_locations = fetch_vbce_locations()
+            roles = fetch_roles()
         except RuntimeError:
-            vbce_locations = []
+            roles = []
+        role_options = sorted(
+            [
+                str(role.get("name", "")).strip()
+                for role in roles
+                if isinstance(role, dict) and str(role.get("name", "")).strip()
+            ]
+        )
+        if default_role and default_role not in role_options:
+            role_options.append(default_role)
 
     with st.container(key="card_narrow"):
         with st.form(f"form-{title}", border=False):
@@ -1762,20 +1773,16 @@ def render_job_form(title, job=None):
                 "Required software",
                 value=defaults.get("required_software", ""),
             )
-            location_id = ""
+            role = default_role
             if not job:
-                if vbce_locations:
-                    location_options = sorted([str(loc) for loc in vbce_locations if loc is not None])
-                    location_id = st.selectbox(
-                        "Location",
-                        options=location_options,
-                        index=0,
+                if role_options:
+                    role = st.selectbox(
+                        "Role",
+                        options=role_options,
+                        index=role_options.index(default_role) if default_role in role_options else 0,
                     )
                 else:
-                    location_id = st.text_input(
-                        "Location",
-                        value=defaults.get("location_id", ""),
-                    )
+                    role = st.text_input("Role", value=default_role)
 
             frequency_options = [item["value"] for item in _job_frequency_options()]
             frequency = st.selectbox(
@@ -1791,7 +1798,6 @@ def render_job_form(title, job=None):
                 "Locked",
                 value=defaults.get("locked", ""),
             )
-            role = defaults.get("role", "")
             job_type = defaults.get("type", "")
             vbuser_id = defaults.get("vbuser_id", "")
 
@@ -1824,8 +1830,6 @@ def render_job_form(title, job=None):
         "type": job_type,
         "vbuser_id": vbuser_id,
     }
-    if not job and location_id.strip():
-        payload["location_id"] = location_id.strip()
 
     try:
         if job:
