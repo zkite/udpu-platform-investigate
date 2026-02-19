@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,6 +35,26 @@ var (
 	// Flag read from CLI. Global for parity with original layout.
 	debugEnabled bool
 )
+
+func getenvOrDefault(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func getenvIntOrDefault(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
 
 // NewConfig builds configuration from flags. Signatures are unchanged by design.
 func NewConfig() *types.Config {
@@ -114,10 +135,10 @@ func main() {
 	// Local test overrides for server and repo endpoints.
 	if cfg.LocalTest {
 		logx.Infof("Local testing mode enabled. Overriding server and repo host/port and MAC address")
-		*global.ServerHost = constants.LocalTestServerHost
-		*global.ServerPort = constants.LocalTestServerPort
-		*global.RepoHost = constants.LocalTestRepoHost
-		*global.RepoPort = constants.LocalTestRepoPort
+		*global.ServerHost = getenvOrDefault("LOCAL_TEST_SERVER_HOST", constants.LocalTestServerHost)
+		*global.ServerPort = getenvIntOrDefault("LOCAL_TEST_SERVER_PORT", constants.LocalTestServerPort)
+		*global.RepoHost = getenvOrDefault("LOCAL_TEST_REPO_HOST", constants.LocalTestRepoHost)
+		*global.RepoPort = getenvIntOrDefault("LOCAL_TEST_REPO_PORT", constants.LocalTestRepoPort)
 	}
 
 	// Detect outbound IP.
