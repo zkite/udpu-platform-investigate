@@ -1,6 +1,7 @@
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from redis.asyncio.client import Redis
+from starlette.websockets import WebSocketState
 
 from domain.api.jobs.core import JobRepository
 from domain.api.jobs.schemas import JobSchema
@@ -94,7 +95,8 @@ async def pubsub_endpoint(
         for e in eg.exceptions:
             logger.error("Websocket task failed", exc_info=e)
     finally:
-        await websocket.close()
+        if websocket.application_state != WebSocketState.DISCONNECTED:
+            await websocket.close()
 
 
 @ws_router.websocket("/pub")
@@ -217,6 +219,8 @@ async def pub_endpoint(
             except (asyncio.CancelledError, WebSocketDisconnect):
                 break
             except Exception as e:
+                if isinstance(e, RuntimeError) and str(e) == 'Cannot call "send" once a close message has been sent.':
+                    break
                 logger.error("Subscriber error", exc_info=e)
                 await asyncio.sleep(0.5)
 
@@ -229,4 +233,5 @@ async def pub_endpoint(
         for e in eg.exceptions:
             logger.error("Websocket task failed", exc_info=e)
     finally:
-        await websocket.close()
+        if websocket.application_state != WebSocketState.DISCONNECTED:
+            await websocket.close()

@@ -245,7 +245,20 @@ def _build_ws_url(path, channel):
     return f"{scheme}://{netloc}{API_PREFIX}{path}?channel={urllib.parse.quote(channel)}"
 
 
-def run_ws_command(command, channel):
+def parse_ws_message(message):
+    try:
+        payload = json.loads(message)
+    except json.JSONDecodeError:
+        return message
+    if isinstance(payload, dict) and "response" in payload:
+        response_value = payload["response"]
+        if isinstance(response_value, str):
+            return response_value
+        return json.dumps(response_value, ensure_ascii=False)
+    return message
+
+
+def run_ws_command(command, channel, collect_all=False):
     url = _build_ws_url("/pub", channel)
     try:
         ws = websocket.create_connection(url, timeout=10)
@@ -253,17 +266,15 @@ def run_ws_command(command, channel):
         raise RuntimeError("WebSocket connection failed") from exc
     try:
         ws.send(command)
-        message = ws.recv()
-        try:
-            payload = json.loads(message)
-        except json.JSONDecodeError:
-            return message
-        if isinstance(payload, dict) and "response" in payload:
-            response_value = payload["response"]
-            if isinstance(response_value, str):
-                return response_value
-            return json.dumps(response_value, ensure_ascii=False)
-        return message
+        responses = [parse_ws_message(ws.recv())]
+        if collect_all:
+            ws.settimeout(0.5)
+            while True:
+                try:
+                    responses.append(parse_ws_message(ws.recv()))
+                except websocket.WebSocketTimeoutException:
+                    break
+        return "\n".join(responses)
     except Exception as exc:
         raise RuntimeError("WebSocket request failed") from exc
     finally:
@@ -278,7 +289,7 @@ def run_job_via_ws(job_name, channel):
 
 
 def run_queue_via_ws(queue_name, channel):
-    return run_ws_command(f"run queue {queue_name}", channel)
+    return run_ws_command(f"run queue {queue_name}", channel, collect_all=True)
 
 
 def fetch_roles():
