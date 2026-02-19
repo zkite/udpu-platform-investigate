@@ -118,6 +118,7 @@ async def pub_endpoint(
     server_stream = f"server:{client}"
     job_repo = JobRepository(redis)
     queue_repo = QueueRepository(redis)
+    shutdown_event = asyncio.Event()
 
     async def publisher() -> None:
         """Read commands from the WebSocket and push tasks into the client's personal stream."""
@@ -190,17 +191,24 @@ async def pub_endpoint(
                     )
 
             except (asyncio.CancelledError, WebSocketDisconnect):
+                shutdown_event.set()
                 break
             except Exception as e:
                 logger.error("Publisher error", exc_info=e)
+                shutdown_event.set()
                 break
+        shutdown_event.set()
 
     async def subscriber() -> None:
         """Read one message from server:<client>, send it to the WebSocket, then delete it."""
         last_id = "0-0"
         while True:
+            if shutdown_event.is_set():
+                break
             try:
                 resp = await redis.xread(streams={server_stream: last_id}, count=1, block=1000)
+                if shutdown_event.is_set():
+                    break
                 if not resp:
                     continue
 
@@ -209,6 +217,8 @@ async def pub_endpoint(
                     data = _normalize_map(raw)
                     text = data.get("message")
                     if text is not None:
+                        if shutdown_event.is_set() or websocket.application_state != WebSocketState.CONNECTED or websocket.client_state != WebSocketState.CONNECTED:
+                            break
                         await websocket.send_text(text)
                     try:
                         await redis.xdel(server_stream, msg_id)
@@ -217,9 +227,12 @@ async def pub_endpoint(
                     last_id = msg_id
 
             except (asyncio.CancelledError, WebSocketDisconnect):
+                shutdown_event.set()
                 break
             except Exception as e:
-                if isinstance(e, RuntimeError) and str(e) == 'Cannot call "send" once a close message has been sent.':
+                if shutdown_event.is_set() or websocket.application_state != WebSocketState.CONNECTED or websocket.client_state != WebSocketState.CONNECTED:
+                    break
+                if isinstance(e, RuntimeError):
                     break
                 logger.error("Subscriber error", exc_info=e)
                 await asyncio.sleep(0.5)
