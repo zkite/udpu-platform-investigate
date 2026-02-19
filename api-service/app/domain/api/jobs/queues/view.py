@@ -1,6 +1,5 @@
-
-
-from typing import List, Optional
+from typing import List
+from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi_utils.cbv import cbv
@@ -42,6 +41,11 @@ class JobQueueAPI:
         """
         Create a new job queue with unique role and name, validating referenced jobs.
         """
+        if await self.repo.get(payload.name):
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=f"Queue name '{payload.name}' already exists",
+            )
         if not await self.repo.is_role_unique(payload.role):
             raise HTTPException(status_code=400, detail=f"Queue role '{payload.role}' already exists")
         invalid_jobs = await self.repo.validate_jobs(payload.queue)
@@ -67,11 +71,23 @@ class JobQueueAPI:
         existing = await self.repo.get(identifier)
         if not existing:
             raise HTTPException(status_code=404, detail=f"Queue '{identifier}' not found")
+        if payload.name != existing.name and await self.repo.get(payload.name):
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=f"Queue name '{payload.name}' already exists",
+            )
+        if not await self.repo.is_role_unique(payload.role, exclude_identifier=identifier):
+            raise HTTPException(status_code=400, detail=f"Queue role '{payload.role}' already exists")
         invalid_jobs = await self.repo.validate_jobs(payload.queue)
         if invalid_jobs:
             raise HTTPException(status_code=400, detail=f"Job(s) '{', '.join(invalid_jobs)}' do not exist")
-        payload.uid = existing.uid
-        return await self.repo.update(payload)
+        updated = await self.repo.update(
+            identifier,
+            payload.model_dump(exclude_unset=True, exclude={"uid"}),
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail=f"Queue '{identifier}' not found")
+        return updated
 
     @router.delete("/queues/{identifier}")
     async def delete_queue(self, identifier: str) -> dict[str, str]:
@@ -81,7 +97,7 @@ class JobQueueAPI:
         existing = await self.repo.get(identifier)
         if not existing:
             raise HTTPException(status_code=404, detail=f"Queue '{identifier}' not found")
-        await self.repo.delete(existing.uid)
+        await self.repo.delete(identifier)
         return {"message": f"Queue '{identifier}' deleted successfully"}
 
     @router.get("/roles/{role_name}/queues", response_model=List[JobQueueSchema])

@@ -5,11 +5,7 @@ from redis.asyncio.client import Redis
 from domain.api.jobs.core import JobRepository
 from domain.api.jobs.schemas import JobSchema
 from domain.api.northbound.dependencies import get_udpu_status
-from domain.api.jobs.queues.dependencies import (
-    check_queue_identifier_type,
-    get_queue_by_id,
-    get_queue_by_name,
-)
+from domain.api.jobs.queues.core import QueueRepository
 from services.logging.logger import log as logger
 from services.redis.exceptions import RedisResponseError
 
@@ -118,7 +114,8 @@ async def pub_endpoint(
 
     # Personal incoming stream from this client to the server.
     server_stream = f"server:{client}"
-    repo = JobRepository(redis)
+    job_repo = JobRepository(redis)
+    queue_repo = QueueRepository(redis)
 
     async def publisher() -> None:
         """Read commands from the WebSocket and push tasks into the client's personal stream."""
@@ -130,20 +127,20 @@ async def pub_endpoint(
                 if cmd.startswith("run queue"):
                     _, qid = cmd.split("run queue", 1)
                     qid = qid.strip()
-                    qtype = await check_queue_identifier_type(redis, qid)
-                    queue = (
-                        await get_queue_by_id(redis, qid)
-                        if qtype == "uid"
-                        else await get_queue_by_name(redis, qid)
-                    )
+                    try:
+                        queue = await queue_repo.get(qid)
+                    except RedisResponseError as e:
+                        logger.error("Failed to fetch queue %s: %s", qid, e)
+                        await websocket.send_text(f"Error fetching queue: {qid}")
+                        continue
                     if queue:
                         await redis.xadd(
                             stream,
                             {
                                 "action_type": "queue",
-                                "name": qid,
-                                "jobs": queue["queue"],
-                                "locked": queue["locked"],
+                                "name": queue.name,
+                                "jobs": queue.queue,
+                                "locked": queue.locked,
                             },
                             maxlen=10000,
                             approximate=True,
@@ -163,7 +160,7 @@ async def pub_endpoint(
                     _, jid = cmd.split("run job", 1)
                     jid = jid.strip()
                     try:
-                        job: JobSchema = await repo.get(jid)
+                        job: JobSchema = await job_repo.get(jid)
                     except RedisResponseError as e:
                         logger.error("Failed to fetch job %s: %s", jid, e)
                         await websocket.send_text(f"Error fetching job: {jid}")

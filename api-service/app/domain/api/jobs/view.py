@@ -16,7 +16,7 @@ class JobsAPI:
     repo: JobRepository = Depends(get_repository)
 
     @router.get("/jobs", response_model=List[JobSchema])
-    async def list_jobs(self, name: Optional[str] = None):
+    async def list_jobs(self, name: Optional[str] = None, filter_by: Optional[str] = None):
         if name:
             job = await self.repo.get(name)
             if not job:
@@ -25,6 +25,17 @@ class JobsAPI:
                     detail=f"No jobs found for filter '{name}'",
                 )
             return [job]
+        if filter_by:
+            jobs = []
+            seen = set()
+            for identifier in [item.strip() for item in filter_by.split(",") if item.strip()]:
+                if identifier in seen:
+                    continue
+                seen.add(identifier)
+                job = await self.repo.get(identifier)
+                if job:
+                    jobs.append(job)
+            return jobs
         return await self.repo.get_all()
 
     @router.post("/jobs", response_model=JobSchema, status_code=HTTPStatus.CREATED)

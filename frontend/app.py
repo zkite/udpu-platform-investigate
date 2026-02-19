@@ -220,7 +220,14 @@ def api_request(method: str, path: str, payload=None):
             detail = json.loads(message)
         except json.JSONDecodeError:
             detail = {"message": message}
-        raise RuntimeError(detail.get("message", "Request failed")) from exc
+        error_message = detail.get("message")
+        if not error_message and isinstance(detail.get("detail"), str):
+            error_message = detail.get("detail")
+        if not error_message and isinstance(detail.get("detail"), list):
+            error_message = "; ".join([str(item) for item in detail.get("detail")])
+        if not error_message:
+            error_message = "Request failed"
+        raise RuntimeError(error_message) from exc
 
     except urllib.error.URLError as exc:
         raise RuntimeError("API is unavailable") from exc
@@ -238,14 +245,14 @@ def _build_ws_url(path, channel):
     return f"{scheme}://{netloc}{API_PREFIX}{path}?channel={urllib.parse.quote(channel)}"
 
 
-def run_job_via_ws(job_name, channel):
+def run_ws_command(command, channel):
     url = _build_ws_url("/pub", channel)
     try:
         ws = websocket.create_connection(url, timeout=10)
     except Exception as exc:
         raise RuntimeError("WebSocket connection failed") from exc
     try:
-        ws.send(f"run job {job_name}")
+        ws.send(command)
         message = ws.recv()
         try:
             payload = json.loads(message)
@@ -264,6 +271,14 @@ def run_job_via_ws(job_name, channel):
             ws.close()
         except Exception:
             pass
+
+
+def run_job_via_ws(job_name, channel):
+    return run_ws_command(f"run job {job_name}", channel)
+
+
+def run_queue_via_ws(queue_name, channel):
+    return run_ws_command(f"run queue {queue_name}", channel)
 
 
 def fetch_roles():
@@ -355,6 +370,22 @@ def fetch_job(identifier):
     return api_request("GET", f"/jobs/{identifier}")
 
 
+def fetch_queues():
+    try:
+        queues = api_request("GET", "/queues")
+    except RuntimeError as exc:
+        if str(exc) == "No queues found":
+            return []
+        raise
+    if isinstance(queues, list):
+        return queues
+    return []
+
+
+def fetch_queue(identifier):
+    return api_request("GET", f"/queues/{identifier}")
+
+
 def fetch_job_logs():
     logs = api_request("GET", "/logs/jobs")
     if isinstance(logs, list):
@@ -395,6 +426,11 @@ def ensure_state():
     st.session_state.setdefault("job_ws_channel", "")
     st.session_state.setdefault("job_ws_response", "")
     st.session_state.setdefault("job_ws_active_job", None)
+    st.session_state.setdefault("queues_view", "list")
+    st.session_state.setdefault("selected_queue", None)
+    st.session_state.setdefault("queue_ws_channel", "")
+    st.session_state.setdefault("queue_ws_response", "")
+    st.session_state.setdefault("queue_ws_active_queue", None)
     st.session_state.setdefault("logs_job_filter", "All jobs")
     st.session_state.setdefault("logs_page", 1)
     st.session_state.setdefault("logs_page_size", 25)
@@ -412,8 +448,14 @@ def do_logout():
     st.session_state.udpu_location = ""
     st.session_state.jobs_view = "list"
     st.session_state.selected_job = None
+    st.session_state.job_ws_channel = ""
     st.session_state.job_ws_response = ""
     st.session_state.job_ws_active_job = None
+    st.session_state.queues_view = "list"
+    st.session_state.selected_queue = None
+    st.session_state.queue_ws_channel = ""
+    st.session_state.queue_ws_response = ""
+    st.session_state.queue_ws_active_queue = None
     st.session_state.logs_job_filter = "All jobs"
     st.session_state.logs_page = 1
     st.session_state.logs_page_size = 25
@@ -432,6 +474,9 @@ def set_active_tab(tab: str):
     if tab != "Jobs":
         st.session_state.job_ws_response = ""
         st.session_state.job_ws_active_job = None
+    if tab != "Queues":
+        st.session_state.queue_ws_response = ""
+        st.session_state.queue_ws_active_queue = None
     st.rerun()
 
 
@@ -548,6 +593,28 @@ def confirm_delete_job(job_name):
                 st.toast("Job deleted")
                 st.session_state.jobs_view = "list"
                 st.session_state.selected_job = None
+                st.rerun()
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+
+@st.dialog("Delete queue?")
+def confirm_delete_queue(queue_name):
+    st.write(f"Queue: **{queue_name}**")
+    st.warning("This action cannot be undone.")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+    with c2:
+        if st.button("Delete", type="primary", use_container_width=True):
+            try:
+                with st.spinner("Deleting queue..."):
+                    api_request("DELETE", f"/queues/{queue_name}")
+                st.toast("Queue deleted")
+                st.session_state.queues_view = "list"
+                st.session_state.selected_queue = None
                 st.rerun()
             except RuntimeError as exc:
                 st.error(str(exc))
@@ -1961,6 +2028,321 @@ def render_jobs():
     render_job_list()
 
 
+def _queue_jobs_values(queue_value):
+    return [item.strip() for item in str(queue_value or "").split(",") if item.strip()]
+
+
+def render_queue_detail():
+    name = st.session_state.selected_queue
+    if not name:
+        st.session_state.queues_view = "list"
+        st.rerun()
+
+    if st.session_state.queue_ws_active_queue != name:
+        st.session_state.queue_ws_response = ""
+        st.session_state.queue_ws_active_queue = name
+
+    top = st.columns([1, 6, 2, 2])
+    if top[0].button("← Back", key="queue-detail-back", use_container_width=True):
+        st.session_state.queues_view = "list"
+        st.rerun()
+    if top[2].button("Edit", key="queue-detail-edit", use_container_width=True):
+        st.session_state.queues_view = "edit"
+        st.rerun()
+    if top[3].button("Delete", key="queue-detail-delete", use_container_width=True):
+        confirm_delete_queue(name)
+
+    try:
+        with st.spinner("Loading queue..."):
+            queue = fetch_queue(name)
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    st.subheader(queue.get("name", ""))
+    st.write(queue.get("description", ""))
+
+    frequency_value = str(queue.get("frequency") or "")
+    frequency_label = _job_frequency_label(frequency_value or "")
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Role", queue.get("role", "") or "-")
+    c2.metric("Frequency", frequency_label or "-")
+    c3.metric("Locked", queue.get("locked", "") or "-")
+
+    queue_jobs = _queue_jobs_values(queue.get("queue", ""))
+    st.markdown("#### Jobs")
+    if queue_jobs:
+        st.code("\n".join(queue_jobs), language="text")
+    else:
+        st.caption("Queue is empty")
+
+    if queue.get("require_output"):
+        st.markdown("#### Require output")
+        st.code(queue.get("require_output", "") or "", language="text")
+
+    st.markdown("#### Run queue")
+    with st.container(key="card"):
+        channel_options = []
+        try:
+            channel_options = _job_channel_options()
+        except RuntimeError:
+            channel_options = []
+
+        channel_value = st.session_state.queue_ws_channel
+        if channel_options:
+            if channel_value and channel_value not in channel_options:
+                channel_options = [channel_value] + channel_options
+            channel_options = [""] + channel_options
+            channel_value = st.selectbox(
+                "Channel",
+                options=channel_options,
+                index=channel_options.index(channel_value) if channel_value in channel_options else 0,
+                format_func=lambda value: "Select channel" if value == "" else value,
+                key="queue-run-channel",
+            )
+        else:
+            channel_value = st.text_input("Channel", value=channel_value, key="queue-run-channel-input")
+
+        if st.button("Run queue", key="run-queue-btn", use_container_width=True):
+            if not channel_value.strip():
+                st.error("Channel is required")
+                return
+            try:
+                with st.spinner("Running queue..."):
+                    response = run_queue_via_ws(name, channel_value.strip())
+                st.session_state.queue_ws_channel = channel_value.strip()
+                st.session_state.queue_ws_response = response
+                st.toast("Queue command sent")
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+        if st.session_state.queue_ws_response:
+            st.markdown("#### Response")
+            st.code(st.session_state.queue_ws_response, language="text")
+
+
+def render_queue_form(title, queue=None):
+    defaults = queue or {}
+    st.subheader(title)
+
+    roles = []
+    try:
+        roles = fetch_roles()
+    except RuntimeError:
+        roles = []
+
+    role_options = sorted(
+        [
+            str(role.get("name", "")).strip()
+            for role in roles
+            if isinstance(role, dict) and str(role.get("name", "")).strip()
+        ]
+    )
+    default_role = str(defaults.get("role", "") or "").strip()
+    if default_role and default_role not in role_options:
+        role_options.append(default_role)
+
+    jobs = []
+    try:
+        jobs = fetch_jobs()
+    except RuntimeError:
+        jobs = []
+
+    job_options = sorted(
+        [
+            str(job.get("name", "")).strip()
+            for job in jobs
+            if isinstance(job, dict)
+            and str(job.get("name", "")).strip()
+            and str(job.get("name", "")).strip() != "registered_device"
+        ]
+    )
+
+    frequency_value = str(defaults.get("frequency") or "")
+    frequency_options = [item["value"] for item in _job_frequency_options()]
+    if frequency_value and frequency_value not in frequency_options:
+        frequency_options = [frequency_value] + frequency_options
+
+    with st.container(key="card_narrow"):
+        with st.form(f"queue-form-{title}", border=False):
+            name = st.text_input("Name", value=defaults.get("name", ""), disabled=bool(queue))
+            description = st.text_area("Description", value=defaults.get("description", ""))
+            queue_jobs = st.text_input("Jobs (comma-separated)", value=defaults.get("queue", ""))
+            if job_options:
+                st.caption("Available jobs: " + ", ".join(job_options))
+            if role_options:
+                role_select_options = [""] + role_options
+                role = st.selectbox(
+                    "Role",
+                    options=role_select_options,
+                    index=role_select_options.index(default_role) if default_role in role_select_options else 0,
+                )
+            else:
+                role = st.text_input("Role", value=default_role)
+            require_output = st.text_input("Require output", value=defaults.get("require_output", ""))
+            frequency = st.selectbox(
+                "Frequency",
+                options=frequency_options,
+                index=frequency_options.index(frequency_value) if frequency_value in frequency_options else 0,
+                format_func=_job_frequency_label,
+            )
+            locked = st.text_input("Locked", value=defaults.get("locked", ""))
+            save = st.form_submit_button("Save", use_container_width=True)
+
+        if st.button("Cancel", key=f"queue-cancel-{title}", use_container_width=True):
+            st.session_state.queues_view = "list"
+            st.rerun()
+
+    if not save:
+        return
+
+    normalized_jobs = ",".join(_queue_jobs_values(queue_jobs))
+
+    if not name.strip():
+        st.error("Queue name is required")
+        return
+    if not normalized_jobs:
+        st.error("At least one job is required")
+        return
+
+    payload = {
+        "name": name.strip(),
+        "description": description,
+        "queue": normalized_jobs,
+        "role": role,
+        "require_output": require_output,
+        "locked": locked,
+        "frequency": frequency or None,
+    }
+
+    try:
+        if queue:
+            with st.spinner("Updating queue..."):
+                updated = api_request("PATCH", f"/queues/{queue.get('name','')}", payload)
+            st.session_state.selected_queue = (updated or {}).get("name", queue.get("name", ""))
+            st.session_state.queues_view = "detail"
+            st.toast("Queue updated")
+        else:
+            with st.spinner("Creating queue..."):
+                created = api_request("POST", "/queues", payload)
+            st.session_state.selected_queue = (created or {}).get("name", payload["name"])
+            st.session_state.queues_view = "detail"
+            st.toast("Queue created")
+        st.rerun()
+    except RuntimeError as exc:
+        st.error(str(exc))
+
+
+def render_queue_list():
+    st.title("Queues")
+
+    _, add_col = st.columns([7, 2])
+    if add_col.button("Add queue", key="add-queue-btn", use_container_width=True):
+        st.session_state.queues_view = "add"
+        st.session_state.selected_queue = None
+        st.rerun()
+
+    try:
+        with st.spinner("Loading queues..."):
+            queues = fetch_queues()
+    except RuntimeError as exc:
+        st.error(str(exc))
+        return
+
+    if not queues:
+        st.info("No queues found")
+        return
+
+    if pd is not None:
+        rows = []
+        for queue in queues:
+            jobs_count = len(_queue_jobs_values(queue.get("queue", "")))
+            rows.append(
+                {
+                    "Name": queue.get("name", ""),
+                    "Description": queue.get("description", ""),
+                    "Role": queue.get("role", ""),
+                    "Jobs": jobs_count,
+                    "Locked": queue.get("locked", ""),
+                    "Frequency": _job_frequency_label(str(queue.get("frequency") or "")),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+        event = st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+        )
+
+        selected_idx = None
+        if event and getattr(event, "selection", None):
+            rows_sel = event.selection.get("rows", [])
+            if rows_sel:
+                selected_idx = rows_sel[0]
+
+        with st.container(key="card"):
+            st.markdown("#### Actions")
+            if selected_idx is None:
+                st.caption("Select a queue in the table to enable actions.")
+                return
+
+            selected_name = str(df.iloc[selected_idx]["Name"])
+            st.write(f"Selected: **{selected_name}**")
+
+            a1, a2, a3 = st.columns(3)
+            if a1.button("Open", key="queue-open-selected", use_container_width=True):
+                st.session_state.selected_queue = selected_name
+                st.session_state.queues_view = "detail"
+                st.rerun()
+            if a2.button("Edit", key="queue-edit-selected", use_container_width=True):
+                st.session_state.selected_queue = selected_name
+                st.session_state.queues_view = "edit"
+                st.rerun()
+            if a3.button("Delete", key="queue-delete-selected", use_container_width=True):
+                confirm_delete_queue(selected_name)
+    else:
+        for queue in queues:
+            c1, c2, c3 = st.columns([3, 5, 2])
+            c1.write(queue.get("name", ""))
+            c2.write(queue.get("description", ""))
+            if c3.button("Open", key=f"queue-open-{queue.get('name','')}"):
+                st.session_state.selected_queue = queue.get("name")
+                st.session_state.queues_view = "detail"
+                st.rerun()
+
+
+def render_queues():
+    view = st.session_state.queues_view
+    if view != "detail":
+        st.session_state.queue_ws_response = ""
+        st.session_state.queue_ws_active_queue = None
+
+    if view == "detail":
+        render_queue_detail()
+        return
+    if view == "add":
+        render_queue_form("Add queue")
+        return
+    if view == "edit":
+        name = st.session_state.selected_queue
+        if not name:
+            st.session_state.queues_view = "list"
+            st.rerun()
+        try:
+            queue = fetch_queue(name)
+        except RuntimeError as exc:
+            st.error(str(exc))
+            return
+        render_queue_form("Edit queue", queue=queue)
+        return
+
+    render_queue_list()
+
+
 def render_logs():
     st.title("Logs")
 
@@ -2152,6 +2534,8 @@ def render_app():
                 set_active_tab("mDPU")
             if st.button("Jobs", use_container_width=True, type="primary" if current == "Jobs" else "secondary"):
                 set_active_tab("Jobs")
+            if st.button("Queues", use_container_width=True, type="primary" if current == "Queues" else "secondary"):
+                set_active_tab("Queues")
             if st.button("Logs", use_container_width=True, type="primary" if current == "Logs" else "secondary"):
                 set_active_tab("Logs")
 
@@ -2173,6 +2557,8 @@ def render_app():
             render_udpu()
         elif selection == "Jobs":
             render_jobs()
+        elif selection == "Queues":
+            render_queues()
         elif selection == "Logs":
             render_logs()
 
