@@ -1,0 +1,3 @@
+interface:
+  display_name: "mUDPU Investigation"
+  short_description: "Investigate mUDPU architecture and contracts"
