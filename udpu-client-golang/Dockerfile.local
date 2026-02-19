@@ -1,0 +1,26 @@
+# docker build -f Dockerfile.local -t client . && \
+# CID=$(docker create client) && \
+# docker cp "$CID":/build/dist/client ./dist/client && \
+# docker rm "$CID" && \
+# chmod +x ./dist/client
+
+
+FROM golang:1.23-alpine
+
+RUN apk add --no-cache \
+    build-base \
+    musl-dev \
+    curl \
+    git
+
+
+WORKDIR /build
+
+COPY . .
+
+ENV GOOS=linux
+ENV GOARCH=arm64
+ENV CGO_ENABLED=1
+
+
+RUN mkdir -p dist && go build -o ./dist/client ./client.go
